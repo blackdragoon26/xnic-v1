@@ -12,7 +12,7 @@ jobs:
       - name: Install build and analysis tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y linux-headers-generic sparse shellcheck clang llvm
+          sudo apt-get install -y linux-headers-generic sparse shellcheck clang llvm libdpdk-dev dpdk librte-net-pcap24 tcpdump
       - name: Shell and model tests
         run: make check
       - name: GCC kernel build and sparse
@@ -28,3 +28,5 @@ jobs:
           make -C driver KDIR="$KDIR" clean all LLVM=1
       - name: Documentation contract
         run: make docs
+      - name: DPDK PCAP PMD
+        run: sudo ./scripts/guest/dpdk-pcap-test.sh

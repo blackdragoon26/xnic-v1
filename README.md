@@ -26,6 +26,10 @@ upstream `e1000` driver and must not be used on a production system.
 
 The intentionally excluded scope is recorded in [limitations](docs/limitations.md).
 
+After the driver gate passed, `dpdk/` added a separately gated DPDK 23.11
+single-port/single-queue forwarder. Its PCAP PMD result is real; ENA validation
+is not yet claimed.
+
 ## Quick start
 
 The host harness creates an Ubuntu ARM64 cloud image, starts QEMU with the
@@ -80,3 +84,5 @@ management NIC for SSH and a separate e1000 test NIC.
 - [Limitations and honest claims](docs/limitations.md)
 - [Interview notes](docs/interview-notes.md)
 - [One-page technical summary](docs/technical-summary.md)
+- [Defensible résumé bullets](docs/resume-bullets.md)
+- [DPDK virtual-PMD evidence](evidence/dpdk/README.md)

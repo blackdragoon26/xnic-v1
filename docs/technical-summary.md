@@ -50,5 +50,12 @@ reproducer was replaced with deterministic AF_PACKET traffic.
 KFENCE was enabled and clean. KASAN and lockdep were unavailable. The recorded
 QEMU function used legacy interrupts, so MSI is implemented but not execution
 validated. Malformed RX validation uses explicit descriptor-boundary fault
-injection, not a hostile physical link. DPDK, RDMA, physical link behavior,
+injection, not a hostile physical link. ENA, RDMA, physical link behavior,
 board bring-up, and production driver experience are not claimed.
+
+After the driver gate passed, a separate DPDK 23.11 `rte_ethdev` application
+was built with one port/queue, mempool-backed bursts, L2 forwarding,
+partial-TX mbuf cleanup, counters, and signal-safe shutdown. The `net_pcap` PMD
+executed 20 RX/20 TX with zero drops; deterministic partial-TX and SIGTERM paths
+also passed. This is a virtual-PMD functional result, not ENA or throughput
+validation.

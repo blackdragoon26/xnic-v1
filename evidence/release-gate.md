@@ -25,8 +25,11 @@ the scenario logs. [Guest reboot evidence](runs/20260808T080600Z/guest-reboot.lo
 also records a clean rebind and 5/5 replies. A `pass` records observed QEMU
 behavior, not silicon proof.
 
+The exact baseline commit also passed a separate [clean-checkout build and
+runtime flow](runs/20260808T080600Z/clean-checkout.log).
+
 Driver scenario gate: **PASS**. Lockdep, KASAN, MSI execution, and physical
 silicon remain explicit environment limitations rather than silent passes.
 
-DPDK remains **CLOSED** until a clean-checkout demo is recorded and reviewed;
-the driver test results alone do not authorize a DPDK résumé claim.
+DPDK implementation gate: **OPEN** after clean-checkout validation. A DPDK
+résumé claim remains forbidden until its own PMD execution evidence exists.

@@ -1,0 +1,2 @@
+xnic-forwarder port=0 idle_limit=0
+XNIC_DPDK_RESULT rx=0 tx=0 dropped=0 signal=1

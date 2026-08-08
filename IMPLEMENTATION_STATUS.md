@@ -37,5 +37,8 @@ headers because they inject GCC-only `-fconserve-stack` and
 `-fsanitize=bounds-strict`. This is recorded as a toolchain/kernel-header
 limitation, not represented as a successful Clang build.
 
-DPDK and RDMA remain unimplemented. Driver scenarios pass, but the DPDK gate
-stays closed until the clean-checkout demonstration is recorded and reviewed.
+The exact baseline commit passed a clean-clone guest build, sparse analysis,
+bind, packet, ring-full, and malformed-RX flow. A compact DPDK 23.11
+`rte_ethdev` forwarder subsequently passed the `net_pcap` PMD with 20/20
+packets, deterministic partial-TX cleanup, counters, and SIGTERM shutdown.
+ENA and physical-PMD execution remain pending; RDMA remains outside v1.
