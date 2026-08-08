@@ -1,0 +1,17 @@
+PASS mixed_stress duration=1800 resets=95
+NIC statistics:
+     interrupts: 138648
+     spurious_interrupts: 0
+     napi_polls: 138679
+     napi_budget_exhausted: 31
+     tx_ring_full: 127
+     tx_ring_wraps: 2255
+     rx_ring_wraps: 2080
+     tx_dma_errors: 0
+     rx_alloc_failures: 0
+     rx_dma_errors: 0
+     rx_non_eop: 0
+     rx_descriptor_errors: 0
+     resets: 107
+     tx_timeouts: 1
+     link_changes: 0

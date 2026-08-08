@@ -1,0 +1,22 @@
+PING 10.11.0.2 (10.11.0.2) from 10.11.0.15 xnic0: 56(84) bytes of data.
+
+--- 10.11.0.2 ping statistics ---
+646400 packets transmitted, 646400 received, 0% packet loss, time 569133ms
+rtt min/avg/max/mdev = 0.015/0.766/280.420/1.103 ms, pipe 7, ipg/ewma 0.880/0.517 ms
+PASS wraparound target=10000 tx_delta=10100 rx_delta=10100 packets=646400
+NIC statistics:
+     interrupts: 646352
+     spurious_interrupts: 0
+     napi_polls: 646352
+     napi_budget_exhausted: 0
+     tx_ring_full: 0
+     tx_ring_wraps: 10100
+     rx_ring_wraps: 10100
+     tx_dma_errors: 0
+     rx_alloc_failures: 0
+     rx_dma_errors: 0
+     rx_non_eop: 0
+     rx_descriptor_errors: 0
+     resets: 2
+     tx_timeouts: 0
+     link_changes: 1

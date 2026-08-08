@@ -1,0 +1,17 @@
+PASS tx_ring_full before=0 after=1
+NIC statistics:
+     interrupts: 84
+     spurious_interrupts: 0
+     napi_polls: 84
+     napi_budget_exhausted: 0
+     tx_ring_full: 65
+     tx_ring_wraps: 64
+     rx_ring_wraps: 0
+     tx_dma_errors: 0
+     rx_alloc_failures: 0
+     rx_dma_errors: 0
+     rx_non_eop: 0
+     rx_descriptor_errors: 0
+     resets: 2
+     tx_timeouts: 0
+     link_changes: 1

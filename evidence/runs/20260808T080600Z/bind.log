@@ -1,0 +1,11 @@
+Bound 0000:00:02.0 to xnic_e1000 as xnic0
+driver: xnic_e1000
+version: 0.1.0
+firmware-version: 
+expansion-rom-version: 
+bus-info: 0000:00:02.0
+supports-statistics: yes
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no

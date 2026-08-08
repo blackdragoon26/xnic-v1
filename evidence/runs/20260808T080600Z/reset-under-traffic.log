@@ -1,0 +1,17 @@
+PASS reset_under_traffic=100
+NIC statistics:
+     interrupts: 30
+     spurious_interrupts: 0
+     napi_polls: 30
+     napi_budget_exhausted: 0
+     tx_ring_full: 0
+     tx_ring_wraps: 0
+     rx_ring_wraps: 0
+     tx_dma_errors: 0
+     rx_alloc_failures: 0
+     rx_dma_errors: 0
+     rx_non_eop: 0
+     rx_descriptor_errors: 0
+     resets: 102
+     tx_timeouts: 0
+     link_changes: 1

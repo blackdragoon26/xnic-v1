@@ -1,0 +1,6 @@
+make: Entering directory '/home/xnic/xnic/driver'
+make -C /lib/modules/6.8.0-136-generic/build M=/home/xnic/xnic/driver clean
+make[1]: Entering directory '/usr/src/linux-headers-6.8.0-136-generic'
+  CLEAN   /home/xnic/xnic/driver/Module.symvers
+make[1]: Leaving directory '/usr/src/linux-headers-6.8.0-136-generic'
+make: Leaving directory '/home/xnic/xnic/driver'

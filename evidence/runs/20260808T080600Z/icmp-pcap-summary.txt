@@ -1,0 +1,21 @@
+reading from file /home/xnic/xnic/evidence/runs/20260808T080600Z/icmp.pcap, link-type EN10MB (Ethernet), snapshot length 262144
+08:07:37.684574 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 1, length 64
+08:07:37.685981 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 1, length 64
+08:07:38.685625 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 2, length 64
+08:07:38.685709 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 2, length 64
+08:07:39.752170 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 3, length 64
+08:07:39.752574 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 3, length 64
+08:07:40.775540 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 4, length 64
+08:07:40.775766 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 4, length 64
+08:07:41.798323 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 5, length 64
+08:07:41.799027 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 5, length 64
+08:07:42.800573 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 6, length 64
+08:07:42.800776 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 6, length 64
+08:07:43.843799 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 7, length 64
+08:07:43.843903 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 7, length 64
+08:07:44.867227 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 8, length 64
+08:07:44.867504 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 8, length 64
+08:07:45.893764 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 9, length 64
+08:07:45.893892 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 9, length 64
+08:07:46.918885 IP 10.11.0.15 > 10.11.0.2: ICMP echo request, id 26577, seq 10, length 64
+08:07:46.919061 IP 10.11.0.2 > 10.11.0.15: ICMP echo reply, id 26577, seq 10, length 64

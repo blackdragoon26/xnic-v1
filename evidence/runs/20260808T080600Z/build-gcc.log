@@ -1,0 +1,14 @@
+make: Entering directory '/home/xnic/xnic/driver'
+make -C /lib/modules/6.8.0-136-generic/build M=/home/xnic/xnic/driver modules
+make[1]: Entering directory '/usr/src/linux-headers-6.8.0-136-generic'
+warning: the compiler differs from the one used to build the kernel
+  The kernel was built by: aarch64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+  You are using:           gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+  CC [M]  /home/xnic/xnic/driver/xnic_e1000.o
+  MODPOST /home/xnic/xnic/driver/Module.symvers
+  CC [M]  /home/xnic/xnic/driver/xnic_e1000.mod.o
+  LD [M]  /home/xnic/xnic/driver/xnic_e1000.ko
+  BTF [M] /home/xnic/xnic/driver/xnic_e1000.ko
+Skipping BTF generation for /home/xnic/xnic/driver/xnic_e1000.ko due to unavailability of vmlinux
+make[1]: Leaving directory '/usr/src/linux-headers-6.8.0-136-generic'
+make: Leaving directory '/home/xnic/xnic/driver'

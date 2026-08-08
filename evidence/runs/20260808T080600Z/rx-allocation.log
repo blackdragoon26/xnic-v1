@@ -1,0 +1,17 @@
+PASS rx_allocation_failure reset_before=3 reset_after=4
+NIC statistics:
+     interrupts: 202
+     spurious_interrupts: 0
+     napi_polls: 202
+     napi_budget_exhausted: 0
+     tx_ring_full: 124
+     tx_ring_wraps: 128
+     rx_ring_wraps: 0
+     tx_dma_errors: 0
+     rx_alloc_failures: 1
+     rx_dma_errors: 0
+     rx_non_eop: 0
+     rx_descriptor_errors: 0
+     resets: 4
+     tx_timeouts: 1
+     link_changes: 1

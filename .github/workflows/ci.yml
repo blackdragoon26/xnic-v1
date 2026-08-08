@@ -1,0 +1,30 @@
+name: xnic-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  kernel-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build and analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y linux-headers-generic sparse shellcheck clang llvm
+      - name: Shell and model tests
+        run: make check
+      - name: GCC kernel build and sparse
+        run: |
+          KDIR=$(find /usr/src -maxdepth 1 -type d -name 'linux-headers-*-generic' | sort | tail -1)
+          test -n "$KDIR"
+          make -C driver KDIR="$KDIR" clean all
+          make -C "$KDIR" M="$PWD/driver" C=2 modules
+      - name: Clang kernel-header compatibility probe
+        continue-on-error: true
+        run: |
+          KDIR=$(find /usr/src -maxdepth 1 -type d -name 'linux-headers-*-generic' | sort | tail -1)
+          make -C driver KDIR="$KDIR" clean all LLVM=1
+      - name: Documentation contract
+        run: make docs

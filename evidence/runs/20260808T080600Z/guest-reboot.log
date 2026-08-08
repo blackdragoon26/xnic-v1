@@ -1,0 +1,23 @@
+Linux xnic-v1 6.8.0-136-generic #136-Ubuntu SMP PREEMPT_DYNAMIC Wed Jul  1 21:33:11 UTC 2026 aarch64 aarch64 aarch64 GNU/Linux
+2026-08-08 08:20:27
+driver: xnic_e1000
+version: 0.1.0
+firmware-version: 
+expansion-rom-version: 
+bus-info: 0000:00:02.0
+supports-statistics: yes
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no
+PING 10.11.0.2 (10.11.0.2) from 10.11.0.15 xnic0: 56(84) bytes of data.
+64 bytes from 10.11.0.2: icmp_seq=1 ttl=255 time=0.158 ms
+64 bytes from 10.11.0.2: icmp_seq=2 ttl=255 time=0.173 ms
+64 bytes from 10.11.0.2: icmp_seq=3 ttl=255 time=0.234 ms
+64 bytes from 10.11.0.2: icmp_seq=4 ttl=255 time=0.957 ms
+64 bytes from 10.11.0.2: icmp_seq=5 ttl=255 time=0.131 ms
+
+--- 10.11.0.2 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4120ms
+rtt min/avg/max/mdev = 0.131/0.330/0.957/0.315 ms
+PASS guest_reboot_rebind_traffic

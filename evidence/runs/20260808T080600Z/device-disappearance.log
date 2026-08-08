@@ -1,0 +1,1 @@
+PASS device_disappearance bdf=0000:00:02.0 rescan_and_traffic_recovered
