@@ -1,45 +1,75 @@
-# XNIC v1
+# XNIC
 
-XNIC is a deliberately constrained, clean-room Linux network driver for the
-Intel 82540EM-compatible PCI interface exposed by QEMU's `e1000` device.
+XNIC is a clean-room Linux networking project built to make driver ownership,
+ordering, recovery, and debugging concrete.
 
-Project walkthrough: **[xnic-v1.vercel.app](https://xnic-v1.vercel.app)**
+**[Project overview](https://xnic-v1.vercel.app)** ·
+**[Technical documentation](https://xnic-v1.vercel.app/docs)** ·
+**[Implementation status](IMPLEMENTATION_STATUS.md)** ·
+**[Release evidence](evidence/release-gate.md)**
 
-The dependency-free static site lives under `site/`. Its local `.vercel/` link
-is intentionally ignored; Git integration can later point the Vercel project
-at the `site` root directory for automatic preview and production deployments.
+The primary implementation is a Linux PCI Ethernet driver in C for QEMU's
+Intel 82540EM-compatible `8086:100e` interface. A separate post-v1 track adds a
+W5500 SPI netdev and physical Raspberry Pi bring-up contract. The repository
+distinguishes executed evidence from prepared work; source presence alone is
+never treated as validation.
 
-Current build/runtime truth is tracked in
-[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md); do not infer validation
-from the presence of source code.
+## Current status
 
-It exists to make low-level driver behavior observable and testable: MMIO,
-DMA descriptor ownership, interrupt/NAPI handoff, backpressure, reset ordering,
-failure cleanup, and packet-level diagnosis. It is not a replacement for the
-upstream `e1000` driver and must not be used on a production system.
+| Track | Status | What the status means |
+|---|---|---|
+| PCI driver | **Validated in QEMU/HVF** | Traffic, wraparound, faults, lifecycle, reset, teardown, and recovery executed against the emulated device |
+| DPDK forwarder | **Virtual PMD passed** | `rte_ethdev` application executed with the PCAP PMD, including partial-TX cleanup and signal shutdown |
+| W5500 SPI driver | **Software preflight passed** | ARM64 build, sparse, model tests, overlay build, and unbound module lifecycle passed; no board is connected |
+| ENA / EFA | **Not executed** | AWS credentials fail identity validation; no instance was launched and no cost was incurred |
 
-## Implemented scope
+## What the PCI driver implements
 
-- PCI probe/remove and BAR0 MMIO
-- one legacy RX and TX descriptor ring
-- coherent descriptor DMA and streaming packet DMA
-- MSI with INTx fallback
-- NAPI receive processing
-- TX queue stop/wake and watchdog recovery
-- serialized reset work
-- link state and `ethtool -S` diagnostics
-- deterministic probe and one-shot RX-allocation fault injection
+- PCI probe/remove, BAR0 MMIO, reset, MAC discovery, and `net_device` lifecycle
+- one coherent legacy RX ring and one TX ring with streaming skb DMA mappings
+- interrupt acknowledgement and masking with NAPI receive processing
+- descriptor ownership barriers, TX queue stop/wake, and completion cleanup
+- watchdog and RX-refill recovery serialized against close and removal
+- link reporting, `ethtool -S` diagnostics, tracepoints, and fault injection
+- MSI allocation with INTx fallback
 
-The intentionally excluded scope is recorded in [limitations](docs/limitations.md).
+Deliberately excluded: jumbo frames, multiqueue/RSS, MSI-X, SR-IOV, offloads,
+power management, and full 8254x-family compatibility.
 
-After the driver gate passed, `dpdk/` added a separately gated DPDK 23.11
-single-port/single-queue forwarder. Its PCAP PMD result is real; ENA validation
-is not yet claimed.
+## Recorded results
+
+- 646,400/646,400 ICMP replies with zero loss
+- 10,100 RX and TX descriptor-ring wraparounds
+- 1,000 interface cycles and 100 complete driver rebind cycles
+- 100 resets under traffic with automatic recovery and no module reload
+- deterministic ring-full, RX-allocation, timeout, malformed-descriptor, and
+  staged-probe-failure coverage
+- 30-minute mixed traffic/reset/lifecycle run without driver error counters
+- GCC and sparse builds, KFENCE-enabled runtime, tcpdump capture, and decoded
+  PCAP inspection
+- DPDK PCAP PMD: 20 RX, 20 TX, zero drops, plus partial-TX and SIGTERM paths
+
+KASAN and lockdep were unavailable in the recorded guest kernel. The QEMU
+device selected legacy INTx, so the MSI path is implemented but not
+execution-validated. These are visible limitations, not implied passes.
+
+## Repository map
+
+| Path | Purpose |
+|---|---|
+| [`driver/`](driver/) | clean-room e1000-subset PCI driver |
+| [`dpdk/`](dpdk/) | compact one-port/one-queue L2 forwarder |
+| [`hardware/w5500/`](hardware/w5500/) | W5500 SPI driver, Device Tree overlay, model tests, wiring, and physical gate |
+| [`scripts/`](scripts/) | reproducible QEMU, lifecycle, fault, traffic, and evidence workflows |
+| [`evidence/`](evidence/) | raw logs, PCAPs, expected/observed matrix, and release decision |
+| [`docs/`](docs/) | device contract, concurrency design, bug diary, and interview notes |
+| [`cloud/`](cloud/) | read-only AWS preflight and gated ENA/EFA procedures |
+| [`site/`](site/) | dependency-free project website and on-site documentation |
 
 ## Quick start
 
-The host harness creates an Ubuntu ARM64 cloud image, starts QEMU with the
-upstream driver initially active, and exposes SSH on port 2222:
+The host harness runs an Ubuntu ARM64 guest with separate management and test
+NICs. On macOS:
 
 ```sh
 ./scripts/host/bootstrap-macos.sh
@@ -47,7 +77,7 @@ upstream driver initially active, and exposes SSH on port 2222:
 ./scripts/host/run-qemu.sh
 ```
 
-Copy this repository into the guest, then:
+Copy the repository into the guest, then build and bind the driver:
 
 ```sh
 sudo ./scripts/guest/setup.sh
@@ -58,50 +88,41 @@ ethtool -i xnic0
 ethtool -S xnic0
 ```
 
-The deterministic qualification entry points are:
+`run-qemu.sh` prefers Apple HVF and falls back to TCG. The bind script accepts
+only `8086:100e` and refuses to touch the interface carrying the default route.
+
+## Qualification
 
 ```sh
 sudo ./scripts/guest/mixed-stress.sh 1800 18
 sudo ./scripts/guest/qualification-suite.sh
 ```
 
-The first command is the 30-minute HVF mixed traffic/reset/lifecycle profile.
-The second rebuilds with GCC and sparse, reruns fault and recovery scenarios,
-captures a PCAP, and writes timestamped raw evidence. Neither command makes a
-release claim by itself; compare the output with `evidence/release-gate.md`.
+The first command runs the 30-minute HVF mixed profile. The second rebuilds,
+runs static analysis and fault/recovery scenarios, captures traffic, and writes
+timestamped artifacts. A command completing does not create a release claim;
+the results must satisfy [`evidence/release-gate.md`](evidence/release-gate.md).
 
-`run-qemu.sh` prefers Apple HVF and falls back to TCG. It prints and records the
-chosen accelerator. It locates Homebrew's AArch64 EDK2 firmware automatically;
-other installations can set `XNIC_QEMU_FIRMWARE`. See
-[qualification](docs/qualification.md) before making any validation claim.
+## Physical and cloud follow-up
 
-## Safety
+The [W5500 lab track](hardware/w5500/README.md) is implemented and
+software-qualified, but its scope, logic-analyzer, electrical, traffic, and
+board-lifecycle gates remain pending hardware. Do not describe it as physical
+bring-up yet.
 
-The bind script refuses any device other than Intel `8086:100e` and refuses to
-touch the interface carrying the default route. QEMU uses two NICs: a VirtIO
-management NIC for SSH and a separate e1000 test NIC.
+The [cloud gate](cloud/README.md) defines cost-bounded ENA DPDK and two-node
+EFA/Libfabric experiments. It creates nothing automatically and currently
+stops before provisioning because AWS identity validation fails.
 
-## Documentation
+## Honest public wording
 
-- [Register and descriptor contract](docs/e1000-contract.md)
-- [Concurrency and reset design](docs/concurrency.md)
-- [Qualification protocol](docs/qualification.md)
-- [Bug diary](docs/bug-diary.md)
-- [Limitations and honest claims](docs/limitations.md)
-- [Interview notes](docs/interview-notes.md)
-- [One-page technical summary](docs/technical-summary.md)
-- [Defensible résumé bullets](docs/resume-bullets.md)
-- [DPDK virtual-PMD evidence](evidence/dpdk/README.md)
+Defensible: **“Developed and qualified a clean-room Linux PCI Ethernet driver
+in C against QEMU's Intel 82540EM-compatible interface, covering DMA rings,
+interrupt/NAPI processing, backpressure, fault injection, and serialized reset
+recovery.”**
 
-## Physical hardware follow-on
+Not yet defensible: physical-silicon bring-up, production-driver ownership,
+real-NIC DPDK performance, ENA execution, or RDMA experience.
 
-The post-v1 [W5500 physical-lab track](hardware/w5500/README.md) now contains a
-separate clean-room SPI netdev, Raspberry Pi Device Tree overlay, register and
-ownership contract, model tests, wiring plan, capture scripts, and a strict
-qualification gate. Its source builds on ARM64 Linux, but no board is connected
-yet. It must not be described as physical bring-up until that gate has real
-scope, logic-analyzer, traffic, and kernel evidence.
-
-The [cloud gate](cloud/README.md) separately defines cost-safe ENA DPDK and
-two-node EFA/Libfabric validation. Its read-only preflight currently stops at
-invalid AWS credentials; no cloud execution claim exists.
+See the [website documentation](https://xnic-v1.vercel.app/docs) for the
+readable walkthrough and the repository evidence for raw artifacts.

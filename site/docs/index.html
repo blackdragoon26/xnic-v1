@@ -13,6 +13,7 @@
     <meta name="twitter:image" content="https://xnic-v1.vercel.app/og.png" />
     <title>XNIC documentation</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script src="/theme.js"></script>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -20,11 +21,17 @@
 
     <header>
       <a class="wordmark" href="/">XNIC</a>
-      <nav aria-label="Primary navigation">
-        <a href="/">Overview</a>
-        <a aria-current="page" href="/docs/">Documentation</a>
-        <a href="https://github.com/blackdragoon26/xnic-v1">Source code</a>
-      </nav>
+      <div class="header-controls">
+        <nav aria-label="Primary navigation">
+          <a href="/">Overview</a>
+          <a aria-current="page" href="/docs/">Documentation</a>
+          <a href="https://github.com/blackdragoon26/xnic-v1">Source code</a>
+        </nav>
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Use dark theme" aria-pressed="false">
+          <span class="theme-toggle-track" aria-hidden="true"><span></span></span>
+          <span data-theme-label>Dark</span>
+        </button>
+      </div>
     </header>
 
     <main class="docs-shell" id="content">

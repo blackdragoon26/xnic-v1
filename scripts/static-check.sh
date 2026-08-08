@@ -19,6 +19,12 @@ for script in "$ROOT"/cloud/scripts/*.sh; do
 	sh -n "$script"
 done
 
+if command -v node >/dev/null 2>&1; then
+	node --check "$ROOT/site/theme.js"
+else
+	echo "SKIP website JavaScript syntax check (node unavailable)"
+fi
+
 if [ -d "/lib/modules/$(uname -r)/build" ]; then
 	make -C "$ROOT/driver"
 	if command -v sparse >/dev/null 2>&1; then
