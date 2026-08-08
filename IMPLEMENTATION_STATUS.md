@@ -42,3 +42,22 @@ bind, packet, ring-full, and malformed-RX flow. A compact DPDK 23.11
 `rte_ethdev` forwarder subsequently passed the `net_pcap` PMD with 20/20
 packets, deterministic partial-TX cleanup, counters, and SIGTERM shutdown.
 ENA and physical-PMD execution remain pending; RDMA remains outside v1.
+
+## Post-v1 W5500 physical-lab track
+
+Implemented but not physically validated:
+
+- independent W5500 Socket 0 MACRAW Linux SPI netdev
+- VDM register and buffer transfers with explicit 16 KiB wrap splitting
+- stable double-read handling for changing 16-bit size registers
+- process-context TX, threaded-IRQ RX, queue backpressure, link polling, and
+  serialized reset/teardown (synchronous SPI is never called from hard IRQ or
+  NAPI context)
+- Raspberry Pi DT overlay fixed at 4 MHz for observable first bring-up
+- pure contract tests, overlay build, board install/qualification scripts,
+  wiring/BOM, scope checks, and logic-analyzer capture command
+- clean GCC build and sparse analysis against Linux 6.8.0-136 ARM64 headers
+
+Physical hardware is not connected. There is no W5500 runtime, electrical,
+scope, logic-analyzer, board-lifecycle, or traffic claim yet. The Clang attempt
+hits the same GCC-configured Ubuntu external-header flags recorded above.

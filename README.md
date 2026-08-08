@@ -92,3 +92,16 @@ management NIC for SSH and a separate e1000 test NIC.
 - [One-page technical summary](docs/technical-summary.md)
 - [Defensible résumé bullets](docs/resume-bullets.md)
 - [DPDK virtual-PMD evidence](evidence/dpdk/README.md)
+
+## Physical hardware follow-on
+
+The post-v1 [W5500 physical-lab track](hardware/w5500/README.md) now contains a
+separate clean-room SPI netdev, Raspberry Pi Device Tree overlay, register and
+ownership contract, model tests, wiring plan, capture scripts, and a strict
+qualification gate. Its source builds on ARM64 Linux, but no board is connected
+yet. It must not be described as physical bring-up until that gate has real
+scope, logic-analyzer, traffic, and kernel evidence.
+
+The [cloud gate](cloud/README.md) separately defines cost-safe ENA DPDK and
+two-node EFA/Libfabric validation. Its read-only preflight currently stops at
+invalid AWS credentials; no cloud execution claim exists.

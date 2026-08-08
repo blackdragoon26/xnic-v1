@@ -1,0 +1,17 @@
+./scripts/static-check.sh
+SKIP shellcheck (not installed)
+SKIP kernel build (Linux kernel headers unavailable on this host)
+python3 -m unittest discover -s tests -p 'test_*.py'
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.007s
+
+OK
+python3 -m unittest discover -s hardware/w5500/tests -p 'test_*.py'
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 0.000s
+
+OK
+./hardware/w5500/scripts/build-overlay.sh
+built /Users/sankalpjha/Documents/ChatGPT/xsight chance/hardware/w5500/dts/xnic-w5500.dtbo

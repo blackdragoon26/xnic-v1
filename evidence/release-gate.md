@@ -31,5 +31,7 @@ runtime flow](runs/20260808T080600Z/clean-checkout.log).
 Driver scenario gate: **PASS**. Lockdep, KASAN, MSI execution, and physical
 silicon remain explicit environment limitations rather than silent passes.
 
-DPDK implementation gate: **OPEN** after clean-checkout validation. A DPDK
-résumé claim remains forbidden until its own PMD execution evidence exists.
+DPDK virtual-PMD gate: **PASS** after clean-checkout validation. The separate
+[DPDK evidence](dpdk/README.md) records 20/20 PCAP-PMD forwarding, partial-TX
+cleanup, counters, and signal-safe shutdown. ENA, physical-PMD performance, and
+RDMA claims remain forbidden.
