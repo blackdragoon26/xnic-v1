@@ -3,292 +3,152 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0a0b0d" />
+    <meta name="theme-color" content="#faf9f6" />
     <meta
       name="description"
-      content="XNIC is a clean-room Linux PCI Ethernet driver and gated DPDK forwarding project, validated in QEMU with raw evidence."
+      content="XNIC is a small Linux Ethernet driver built in C to study PCI, DMA rings, interrupts, NAPI, and recovery."
     />
-    <meta property="og:title" content="XNIC — from PCI probe to packet path" />
+    <meta property="og:title" content="XNIC — a small Linux Ethernet driver" />
     <meta
       property="og:description"
-      content="A clean-room Linux Ethernet driver with DMA rings, NAPI, recovery, fault injection, and evidence-backed DPDK validation."
+      content="A plain-English walkthrough of a clean-room Linux driver for QEMU's Intel 82540EM-compatible network device."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/assets/xnic-datapath.png" />
     <title>XNIC — Linux Ethernet Driver</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
-    <script src="/script.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
-    <header class="site-header">
-      <a class="brand" href="#top" aria-label="XNIC home">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>XNIC</span>
-      </a>
+    <header>
+      <a class="wordmark" href="#top">XNIC</a>
       <nav aria-label="Primary navigation">
-        <a href="#architecture">Architecture</a>
-        <a href="#evidence">Evidence</a>
-        <a href="#docs">Docs</a>
-        <a class="nav-github" href="https://github.com/blackdragoon26/xnic-v1">GitHub ↗</a>
+        <a href="#how">How it works</a>
+        <a href="#results">Results</a>
+        <a href="https://github.com/blackdragoon26/xnic-v1">Source code</a>
       </nav>
     </header>
 
     <main id="main">
-      <section class="hero" id="top">
-        <div class="hero-copy">
-          <p class="eyebrow"><span></span> Clean-room Linux driver · QEMU 82540EM</p>
-          <h1>From PCI probe<br />to packet path.</h1>
-          <p class="hero-lede">
-            XNIC is a deliberately small Ethernet driver built to make the hard parts visible:
-            MMIO, DMA ownership, descriptor rings, interrupts, NAPI, backpressure, and recovery.
-          </p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="#architecture">See how it works</a>
-            <a class="button button-secondary" href="https://github.com/blackdragoon26/xnic-v1">View source ↗</a>
-          </div>
-          <p class="hero-boundary">Educational driver. QEMU-validated. No physical-silicon claim.</p>
+      <section class="intro" id="top">
+        <p class="label">Linux · C · PCI · networking</p>
+        <h1>A small Linux Ethernet driver, built to understand what happens between the kernel and a network card.</h1>
+        <p class="summary">
+          XNIC controls an emulated Intel 82540EM-compatible network device in QEMU. It sends and receives real packets, handles interrupts, and recovers from resets while traffic is running.
+        </p>
+        <div class="actions">
+          <a class="primary" href="https://github.com/blackdragoon26/xnic-v1">View the source</a>
+          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/evidence/release-gate.md">Read the test report</a>
         </div>
-
-        <div class="hero-visual">
-          <img
-            src="/assets/xnic-datapath.png"
-            alt="Technical illustration of a PCI Ethernet card connected to two descriptor rings and packet buffers"
-            width="1672"
-            height="941"
-          />
-          <div class="visual-label label-pci">PCIe / MMIO</div>
-          <div class="visual-label label-rings">RX + TX rings</div>
-          <div class="visual-label label-cpu">NAPI / IRQ</div>
-        </div>
-
-        <div class="hero-metrics" aria-label="Headline qualification results">
-          <div><strong>646,400</strong><span>packets, zero loss</span></div>
-          <div><strong>10,100</strong><span>wraps each direction</span></div>
-          <div><strong>30 min</strong><span>mixed recovery stress</span></div>
-          <div><strong>20 / 20</strong><span>DPDK PCAP forwarding</span></div>
-        </div>
+        <p class="note">This is an educational driver validated with an emulated device. It is not a claim of physical-silicon or production-driver experience.</p>
       </section>
 
-      <section class="section intro" aria-labelledby="why-title">
-        <div class="section-kicker">Why this exists</div>
-        <div class="intro-grid">
-          <h2 id="why-title">Not another wrapper around an existing driver.</h2>
-          <div class="prose">
-            <p>
-              The project binds directly to QEMU’s Intel <code>8086:100e</code> PCI function.
-              It maps BAR0, programs the device, allocates coherent descriptor rings, maps packet
-              buffers for DMA, and owns the complete network-device lifecycle.
-            </p>
-            <p>
-              The scope stays intentionally narrow—one RX queue, one TX queue, legacy descriptors,
-              no offloads—so ownership and synchronization can be explained and defended line by line.
-            </p>
-          </div>
+      <section id="how">
+        <h2>What is happening here?</h2>
+        <p>
+          QEMU pretends to be a PCI Ethernet card. Linux discovers that card and loads XNIC. The driver then programs device registers and shares packet buffers with the device through DMA descriptor rings.
+        </p>
+
+        <div class="diagram" role="img" aria-label="Linux sends packets through XNIC descriptor rings to a QEMU network device, and received packets travel back in the opposite direction">
+          <div><strong>Linux networking</strong><span>creates and consumes packets</span></div>
+          <b aria-hidden="true">↔</b>
+          <div><strong>XNIC driver</strong><span>owns lifecycle and synchronization</span></div>
+          <b aria-hidden="true">↔</b>
+          <div><strong>DMA rings</strong><span>describe packet memory</span></div>
+          <b aria-hidden="true">↔</b>
+          <div><strong>QEMU NIC</strong><span>emulates the hardware</span></div>
         </div>
+
+        <p>
+          On transmit, Linux gives the driver a packet. XNIC maps its memory for the device, writes a descriptor, and rings a register “doorbell.” On receive, an interrupt schedules NAPI so Linux can process packets in batches without being overwhelmed by interrupts.
+        </p>
       </section>
 
-      <section class="section architecture" id="architecture" aria-labelledby="architecture-title">
-        <div class="section-heading">
+      <section>
+        <h2>What I implemented</h2>
+        <ul class="checklist">
+          <li><strong>Device setup:</strong> PCI discovery, BAR0 register mapping, reset, MAC-address discovery, and clean removal.</li>
+          <li><strong>Packet movement:</strong> one transmit ring and one receive ring with DMA buffer ownership.</li>
+          <li><strong>Traffic handling:</strong> interrupts, NAPI receive polling, queue stop/wake, and completion cleanup.</li>
+          <li><strong>Recovery:</strong> serialized timeout and reset handling while traffic or teardown is in progress.</li>
+          <li><strong>Visibility:</strong> ethtool counters, tracepoints, fault injection, raw logs, and packet captures.</li>
+          <li><strong>DPDK:</strong> a separate one-port L2 forwarder validated with a virtual PCAP PMD.</li>
+        </ul>
+      </section>
+
+      <section id="results">
+        <h2>What I actually tested</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Test</th><th>Observed result</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Traffic and ring wraparound</td><td>646,400 requests and replies, zero packet loss; 10,100 RX and TX ring wraps.</td></tr>
+              <tr><td>Interface lifecycle</td><td>1,000 down/up cycles and 100 driver rebind cycles.</td></tr>
+              <tr><td>Reset during traffic</td><td>100 resets with automatic recovery and no module reload.</td></tr>
+              <tr><td>Bad receive descriptors</td><td>Missing end-of-packet, hardware-error, and invalid-length cases were rejected.</td></tr>
+              <tr><td>DPDK forwarding</td><td>20 of 20 packets forwarded through the virtual PCAP path, including partial-TX cleanup.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">The repository contains commands, raw logs, PCAP files, versions, and expected-versus-observed results. KASAN, lockdep, physical PMD performance, and MSI execution are not claimed.</p>
+      </section>
+
+      <section>
+        <h2>One bug I can explain</h2>
+        <p>
+          A stalled 64-entry transmit ring stopped the Linux queue, but the diagnostic counter did not always show that the ring had become full. I first suspected completion timing. The real problem was that “full” was detected only on a future transmit call—after Linux had already honored the queue stop and might never call again.
+        </p>
+        <p>
+          The fix was to detect the transition immediately after consuming the last usable descriptor, under the same lock used by completion cleanup. The reproducer, rejected hypothesis, root cause, synchronization reasoning, and regression test are recorded in the <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/bug-diary.md">bug diary</a>.
+        </p>
+      </section>
+
+      <section>
+        <h2>What this proves—and what it does not</h2>
+        <div class="boundaries">
           <div>
-            <div class="section-kicker">The packet path</div>
-            <h2 id="architecture-title">Four boundaries. One ownership contract.</h2>
+            <h3>Evidence this project provides</h3>
+            <ul>
+              <li>Hands-on Linux PCI and netdev driver work in C</li>
+              <li>DMA descriptor ownership and memory ordering</li>
+              <li>Interrupt/NAPI and teardown synchronization</li>
+              <li>Repeatable debugging and fault-path testing</li>
+              <li>Functional DPDK and packet-capture experience</li>
+            </ul>
           </div>
-          <p>Every transition answers the same question: who owns this memory right now?</p>
-        </div>
-
-        <div class="flow" aria-label="Packet flow from Linux to hardware and back">
-          <article class="flow-card">
-            <span class="flow-index">01</span>
-            <div class="flow-icon">SKB</div>
-            <h3>Linux hands off</h3>
-            <p><code>ndo_start_xmit</code> receives an skb and maps its data for device DMA.</p>
-          </article>
-          <div class="flow-arrow" aria-hidden="true">→</div>
-          <article class="flow-card">
-            <span class="flow-index">02</span>
-            <div class="flow-icon">RING</div>
-            <h3>Driver publishes</h3>
-            <p>A descriptor is filled, ordered with <code>dma_wmb()</code>, then exposed through TDT.</p>
-          </article>
-          <div class="flow-arrow" aria-hidden="true">→</div>
-          <article class="flow-card">
-            <span class="flow-index">03</span>
-            <div class="flow-icon">NIC</div>
-            <h3>Device owns</h3>
-            <p>The NIC performs DMA and returns ownership by writing descriptor-done.</p>
-          </article>
-          <div class="flow-arrow" aria-hidden="true">→</div>
-          <article class="flow-card">
-            <span class="flow-index">04</span>
-            <div class="flow-icon">NAPI</div>
-            <h3>NAPI reclaims</h3>
-            <p>The driver observes completion, orders reads, unmaps DMA, and releases the skb.</p>
-          </article>
-        </div>
-
-        <div class="state-panel">
-          <div class="state-copy">
-            <span class="mini-label">Recovery state machine</span>
-            <h3>Reset without lying about synchronization.</h3>
-            <p>
-              Watchdog and RX allocation failures schedule process-context recovery. RTNL and a
-              reset mutex serialize detach, IRQ synchronization, NAPI shutdown, DMA teardown,
-              hardware reset, ring rebuild, and reattachment.
-            </p>
-            <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/concurrency.md">Read the concurrency design ↗</a>
-          </div>
-          <div class="state-machine" aria-label="Driver reset state machine">
-            <div><span>1</span> Running</div>
-            <i></i>
-            <div><span>2</span> Detached</div>
-            <i></i>
-            <div><span>3</span> Quiesced</div>
-            <i></i>
-            <div><span>4</span> Rebuilt</div>
-            <i></i>
-            <div class="state-active"><span>5</span> Running</div>
+          <div>
+            <h3>Experience it does not replace</h3>
+            <ul>
+              <li>Physical board or new-silicon bring-up</li>
+              <li>Oscilloscope, logic-analyzer, or JTAG work</li>
+              <li>Production or upstream driver ownership</li>
+              <li>Real-NIC DPDK performance validation</li>
+              <li>RDMA development or validation</li>
+            </ul>
           </div>
         </div>
       </section>
 
-      <section class="section evidence" id="evidence" aria-labelledby="evidence-title">
-        <div class="section-heading">
-          <div>
-            <div class="section-kicker">Proof, not promises</div>
-            <h2 id="evidence-title">The tests are part of the project.</h2>
-          </div>
-          <p>Raw logs, PCAPs, commands, versions, and expected-versus-observed results are committed.</p>
-        </div>
-
-        <div class="evidence-grid">
-          <article class="evidence-card evidence-card-wide">
-            <div class="evidence-topline"><span>Ring ownership</span><b>PASS</b></div>
-            <strong>10,100 × 2</strong>
-            <h3>RX and TX wraparounds</h3>
-            <p>646,400 ICMP packets, 646,400 replies, zero loss, zero DMA errors.</p>
-            <div class="bar"><span style="--bar: 100%"></span></div>
-          </article>
-          <article class="evidence-card">
-            <div class="evidence-topline"><span>Lifecycle</span><b>PASS</b></div>
-            <strong>1,000</strong>
-            <h3>Interface cycles</h3>
-            <p>Plus 100 complete upstream-driver ↔ XNIC rebind cycles.</p>
-          </article>
-          <article class="evidence-card">
-            <div class="evidence-topline"><span>Recovery</span><b>PASS</b></div>
-            <strong>100</strong>
-            <h3>Resets under traffic</h3>
-            <p>Automatic packet-path recovery without a module reload.</p>
-          </article>
-          <article class="evidence-card">
-            <div class="evidence-topline"><span>Fault paths</span><b>PASS</b></div>
-            <strong>3</strong>
-            <h3>Malformed RX modes</h3>
-            <p>Missing EOP, hardware error bits, and impossible length—all rejected.</p>
-          </article>
-          <article class="evidence-card">
-            <div class="evidence-topline"><span>DPDK 23.11</span><b>PASS</b></div>
-            <strong>20 / 20</strong>
-            <h3>Virtual PMD forwarding</h3>
-            <p>Normal, partial-TX cleanup, counters, PCAP output, and SIGTERM shutdown.</p>
-          </article>
-        </div>
-
-        <a class="evidence-link" href="https://github.com/blackdragoon26/xnic-v1/blob/master/evidence/release-gate.md">
-          <span>
-            <small>Open the audit trail</small>
-            Release gate, raw logs, PCAP, and limitations
-          </span>
-          <b>View evidence ↗</b>
-        </a>
-      </section>
-
-      <section class="section debugging" aria-labelledby="debug-title">
-        <div class="debug-layout">
-          <div>
-            <div class="section-kicker">A real debugging story</div>
-            <h2 id="debug-title">The queue stopped.<br />The counter never moved.</h2>
-          </div>
-          <div class="debug-story">
-            <div class="story-step">
-              <span>Symptom</span>
-              <p>A deliberately stalled 64-entry TX ring stopped the network queue, but the ring-full transition was not reliably observable.</p>
-            </div>
-            <div class="story-step">
-              <span>False lead</span>
-              <p>The first hypothesis blamed completion timing. The real problem was partly hidden by a ping-based reproducer that did not create a deterministic burst.</p>
-            </div>
-            <div class="story-step">
-              <span>Root cause</span>
-              <p>Full state was detected only on a future transmit call—a call Linux was not required to make after honoring the queue stop.</p>
-            </div>
-            <div class="story-step story-step-final">
-              <span>Fix</span>
-              <p>Detect and act on the transition immediately after consuming the final usable descriptor, under the same TX lock used by cleanup.</p>
-            </div>
-            <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/bug-diary.md">Read the full bug diary ↗</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="section docs" id="docs" aria-labelledby="docs-title">
-        <div class="section-heading">
-          <div>
-            <div class="section-kicker">Go deeper</div>
-            <h2 id="docs-title">Documentation built for interrogation.</h2>
-          </div>
-          <p>Enough detail to draw the rings, defend the barriers, and explain what QEMU does not prove.</p>
-        </div>
-
-        <div class="docs-grid">
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/e1000-contract.md">
-            <span>01</span><h3>Device contract</h3><p>Registers, descriptors, reset order, and DMA barriers.</p><b>Read ↗</b>
-          </a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/concurrency.md">
-            <span>02</span><h3>Concurrency</h3><p>IRQ/NAPI handoff, TX locking, teardown, and recovery.</p><b>Read ↗</b>
-          </a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/qualification.md">
-            <span>03</span><h3>Qualification</h3><p>Profiles, gates, diagnostic kernel, and evidence rules.</p><b>Read ↗</b>
-          </a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/interview-notes.md">
-            <span>04</span><h3>Interview defense</h3><p>The questions this project must be able to answer.</p><b>Read ↗</b>
-          </a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/resume-bullets.md">
-            <span>05</span><h3>Claim boundaries</h3><p>Defensible wording and the claims that remain prohibited.</p><b>Read ↗</b>
-          </a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/tree/master/evidence">
-            <span>06</span><h3>Raw evidence</h3><p>Build logs, counters, PCAPs, and scenario output.</p><b>Inspect ↗</b>
-          </a>
-        </div>
-      </section>
-
-      <section class="section boundary" aria-labelledby="boundary-title">
-        <div class="boundary-card">
-          <div>
-            <div class="section-kicker">The honest boundary</div>
-            <h2 id="boundary-title">What this project does not claim.</h2>
-          </div>
-          <ul>
-            <li><span>×</span> Physical silicon or board-level bring-up</li>
-            <li><span>×</span> Production-driver or upstream parity</li>
-            <li><span>×</span> ENA, RDMA, or physical-PMD performance</li>
-            <li><span>×</span> KASAN, lockdep, or executed MSI coverage</li>
-          </ul>
-          <p>
-            Those are next experiments, not retroactive résumé language. The current result is a
-            QEMU-validated Linux driver and a functional DPDK virtual-PMD path.
-          </p>
+      <section>
+        <h2>Technical documents</h2>
+        <div class="documents">
+          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/e1000-contract.md"><strong>Device contract</strong><span>Registers, descriptors, DMA, and reset order</span></a>
+          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/concurrency.md"><strong>Concurrency design</strong><span>IRQ/NAPI handoff, locks, teardown, and recovery</span></a>
+          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/qualification.md"><strong>Qualification plan</strong><span>Test profiles, release gates, and evidence rules</span></a>
+          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/evidence/expected-observed.md"><strong>Test matrix</strong><span>Expected behavior compared with observed results</span></a>
+          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/interview-notes.md"><strong>Interview notes</strong><span>Questions the implementation should withstand</span></a>
+          <a href="https://github.com/blackdragoon26/xnic-v1/tree/master/evidence"><strong>Raw evidence</strong><span>Logs, counters, tool versions, and PCAPs</span></a>
         </div>
       </section>
     </main>
 
     <footer>
-      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span>XNIC</span></div>
-      <p>Built to understand the boundary between software and hardware.</p>
-      <div><a href="https://github.com/blackdragoon26/xnic-v1">GitHub</a><a href="#top">Back to top ↑</a></div>
+      <span>XNIC</span>
+      <span>Built to study the software–hardware boundary.</span>
+      <a href="https://github.com/blackdragoon26/xnic-v1">GitHub</a>
     </footer>
   </body>
 </html>
