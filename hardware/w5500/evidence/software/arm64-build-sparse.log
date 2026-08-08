@@ -32,7 +32,7 @@ version:        0.1.0
 license:        GPL
 description:    Clean-room W5500 MACRAW SPI Ethernet lab driver
 author:         XNIC project
-srcversion:     99A6102D098F63AA7EF55CB
+srcversion:     CA8004FFDF23D1F9AE995A2
 alias:          of:N*T*Cxnic,w5500-labC*
 alias:          of:N*T*Cxnic,w5500-lab
 alias:          spi:xnic-w5500-lab

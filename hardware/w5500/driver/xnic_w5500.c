@@ -25,7 +25,6 @@
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/spi/spi.h>
-#include <asm/unaligned.h>
 #include <linux/workqueue.h>
 
 #include "xnic_w5500.h"
@@ -89,6 +88,17 @@ static void xw5_net_add(struct xw5_priv *priv, u64 *counter, u64 value)
 	spin_unlock_irqrestore(&priv->stats_lock, flags);
 }
 
+static u16 xw5_get_be16(const u8 *bytes)
+{
+	return ((u16)bytes[0] << 8) | bytes[1];
+}
+
+static void xw5_put_be16(u16 value, u8 *bytes)
+{
+	bytes[0] = value >> 8;
+	bytes[1] = value & 0xff;
+}
+
 static int xw5_xfer(struct xw5_priv *priv, u16 addr, u8 block,
 		    bool write, void *data, size_t len)
 {
@@ -130,7 +140,7 @@ static int xw5_read16(struct xw5_priv *priv, u16 addr, u8 block, u16 *value)
 
 	ret = xw5_xfer(priv, addr, block, false, raw, sizeof(raw));
 	if (!ret)
-		*value = get_unaligned_be16(raw);
+		*value = xw5_get_be16(raw);
 	return ret;
 }
 
@@ -138,7 +148,7 @@ static int xw5_write16(struct xw5_priv *priv, u16 addr, u8 block, u16 value)
 {
 	u8 raw[2];
 
-	put_unaligned_be16(value, raw);
+	xw5_put_be16(value, raw);
 	return xw5_xfer(priv, addr, block, true, raw, sizeof(raw));
 }
 
@@ -336,7 +346,7 @@ static int xw5_rx_one(struct xw5_priv *priv)
 	if (ret)
 		return ret;
 
-	packet_len = get_unaligned_be16(prefix);
+	packet_len = xw5_get_be16(prefix);
 	if (packet_len < XW5_RX_PREFIX_LEN + ETH_HLEN || packet_len > available ||
 	    packet_len > XW5_RX_PREFIX_LEN + ETH_FRAME_LEN) {
 		xw5_account_rx_error(priv);

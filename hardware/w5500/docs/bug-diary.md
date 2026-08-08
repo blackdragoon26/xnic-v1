@@ -60,3 +60,32 @@ software-only result belongs in `hardware/w5500/evidence/software/`.
 
 This validates driver registration metadata only. It does not exercise SPI
 probe, register I/O, interrupts, traffic, or physical teardown.
+
+## Cross-version build failure after unaligned-header move
+
+### Symptom and reproduction
+
+GitHub Actions run `31255384486` built the PCI driver but failed the W5500
+module against Linux 6.17 headers because `asm/unaligned.h` no longer exists.
+The same source built against the qualified ARM64 Linux 6.8 headers.
+
+### Investigation and corrected hypothesis
+
+The initial hypothesis was that the x86 Azure header package was incomplete.
+Upstream history instead showed commit `5f60d5f6bbc1` deliberately moved the
+architecture-generic helpers from `asm/unaligned.h` to
+`linux/unaligned.h`. Linux 6.8 and 6.17 therefore expose different include
+paths for the same operation.
+
+### Root cause and fix
+
+An external module intended to span both kernels depended on a moved internal
+header for three two-byte big-endian operations. Small byte-wise helpers now
+decode and encode those values explicitly, removing the version-dependent
+include while retaining alignment safety and wire byte order.
+
+### Regression test and limitation
+
+Require GCC and sparse builds against ARM64 Linux 6.8 and x86-64 Linux 6.17.
+This proves source compatibility only; physical SPI framing remains gated on a
+logic-analyzer capture.
