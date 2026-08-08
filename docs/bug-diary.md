@@ -71,6 +71,39 @@ The stall is deterministic fault injection, not physical PCIe congestion. It
 validates software ownership and backpressure sequencing against QEMU but does
 not establish timing behavior on silicon.
 
+## Build investigation: Linux 6.17 removed the legacy IRQ flag name
+
+### Symptom and minimal reproduction
+
+GitHub Actions run `31255245869` failed while compiling `xnic_e1000.c` against
+Ubuntu's Linux 6.17 Azure headers: `PCI_IRQ_LEGACY` was undeclared at the
+`pci_alloc_irq_vectors()` call. The same source still built against the ARM64
+Linux 6.8 headers used for runtime qualification.
+
+### Expected and observed behavior
+
+The driver requests one vector and permits MSI with an INTx fallback. That
+policy is unchanged, but the obsolete spelling made the source dependent on an
+older kernel API.
+
+### Initial and corrected hypothesis
+
+The first suspicion was an Ubuntu header configuration difference. Inspection
+of upstream Linux v6.17 `include/linux/pci.h` instead showed the supported flag
+is `PCI_IRQ_INTX`; `PCI_IRQ_LEGACY` is absent.
+
+### Root cause and fix
+
+The driver used an old compatibility name rather than the API's explicit INTx
+flag. Replacing it with `PCI_IRQ_INTX` preserves identical allocation semantics
+and avoids a version conditional.
+
+### Regression test and limitations
+
+The fix builds with GCC and sparse against ARM64 Linux 6.8, and CI compiles it
+against x86-64 Linux 6.17 headers. Header compatibility does not substitute for
+executing both MSI and INTx fallback paths on physical hardware.
+
 ## Entry template
 
 ### Symptom and minimal reproduction

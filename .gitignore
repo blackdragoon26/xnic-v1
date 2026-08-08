@@ -13,3 +13,4 @@ Module.symvers
 evidence/runs/*/mixed-ping.log
 __pycache__/
 *.pyc
+hardware/w5500/dts/*.dtbo

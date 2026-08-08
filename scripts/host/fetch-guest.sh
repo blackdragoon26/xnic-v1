@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 CACHE="$ROOT/.cache"
 BASE_URL=https://cloud-images.ubuntu.com/noble/current
 IMAGE=noble-server-cloudimg-arm64.img

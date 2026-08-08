@@ -1,0 +1,40 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			xnic_w5500: ethernet@0 {
+				compatible = "xnic,w5500-lab";
+				reg = <0>;
+				spi-max-frequency = <4000000>;
+				interrupt-parent = <&gpio>;
+				/* IRQ_TYPE_LEVEL_LOW = 8, GPIO_ACTIVE_LOW = 1. */
+				interrupts = <25 8>;
+				reset-gpios = <&gpio 24 1>;
+				local-mac-address = [02 58 4e 49 43 01];
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&spidev0>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	__overrides__ {
+		int_pin = <&xnic_w5500>,"interrupts:0";
+		reset_pin = <&xnic_w5500>,"reset-gpios:4";
+		spi_speed = <&xnic_w5500>,"spi-max-frequency:0";
+	};
+};

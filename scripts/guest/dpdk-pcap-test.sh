@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo" >&2; exit 1; }
 INPUT="$ROOT/evidence/runs/20260808T080600Z/icmp.pcap"
 APP="$ROOT/dpdk/xnic-forwarder"

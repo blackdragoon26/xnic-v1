@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 . "$ROOT/scripts/guest/common.sh"
 [ "$(id -u)" -eq 0 ] || { echo "Run with sudo" >&2; exit 1; }
 CYCLES=${1:-50}
