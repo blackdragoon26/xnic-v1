@@ -14,6 +14,9 @@
       content="A plain-English walkthrough of a clean-room Linux driver for QEMU's Intel 82540EM-compatible network device."
     />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://xnic-v1.vercel.app/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://xnic-v1.vercel.app/og.png" />
     <title>XNIC — Linux Ethernet Driver</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
@@ -26,6 +29,7 @@
       <nav aria-label="Primary navigation">
         <a href="#how">How it works</a>
         <a href="#results">Results</a>
+        <a href="/docs/">Documentation</a>
         <a href="https://github.com/blackdragoon26/xnic-v1">Source code</a>
       </nav>
     </header>
@@ -38,8 +42,8 @@
           XNIC controls an emulated Intel 82540EM-compatible network device in QEMU. It sends and receives real packets, handles interrupts, and recovers from resets while traffic is running.
         </p>
         <div class="actions">
-          <a class="primary" href="https://github.com/blackdragoon26/xnic-v1">View the source</a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/evidence/release-gate.md">Read the test report</a>
+          <a class="primary" href="/docs/">Read the documentation</a>
+          <a href="https://github.com/blackdragoon26/xnic-v1">View the source</a>
         </div>
         <p class="note">This is an educational driver validated with an emulated device. It is not a claim of physical-silicon or production-driver experience.</p>
       </section>
@@ -74,6 +78,7 @@
           <li><strong>Recovery:</strong> serialized timeout and reset handling while traffic or teardown is in progress.</li>
           <li><strong>Visibility:</strong> ethtool counters, tracepoints, fault injection, raw logs, and packet captures.</li>
           <li><strong>DPDK:</strong> a separate one-port L2 forwarder validated with a virtual PCAP PMD.</li>
+          <li><strong>Physical-lab track:</strong> a separate W5500 SPI netdev, Raspberry Pi overlay, bring-up procedure, and strict hardware evidence gate. The software preflight passes; hardware execution is pending.</li>
         </ul>
       </section>
 
@@ -90,6 +95,7 @@
               <tr><td>Reset during traffic</td><td>100 resets with automatic recovery and no module reload.</td></tr>
               <tr><td>Bad receive descriptors</td><td>Missing end-of-packet, hardware-error, and invalid-length cases were rejected.</td></tr>
               <tr><td>DPDK forwarding</td><td>20 of 20 packets forwarded through the virtual PCAP path, including partial-TX cleanup.</td></tr>
+              <tr><td>W5500 software preflight</td><td>ARM64 Linux 6.8 build and sparse pass; 10 contract tests and 100 unbound module lifecycles pass with no kernel messages.</td></tr>
             </tbody>
           </table>
         </div>
@@ -102,7 +108,7 @@
           A stalled 64-entry transmit ring stopped the Linux queue, but the diagnostic counter did not always show that the ring had become full. I first suspected completion timing. The real problem was that “full” was detected only on a future transmit call—after Linux had already honored the queue stop and might never call again.
         </p>
         <p>
-          The fix was to detect the transition immediately after consuming the last usable descriptor, under the same lock used by completion cleanup. The reproducer, rejected hypothesis, root cause, synchronization reasoning, and regression test are recorded in the <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/bug-diary.md">bug diary</a>.
+          The fix was to detect the transition immediately after consuming the last usable descriptor, under the same lock used by completion cleanup. The reproducer, rejected hypothesis, root cause, synchronization reasoning, and regression test are recorded in the <a href="/docs/#debugging">bug diary</a>.
         </p>
       </section>
 
@@ -122,7 +128,7 @@
           <div>
             <h3>Experience it does not replace</h3>
             <ul>
-              <li>Physical board or new-silicon bring-up</li>
+              <li>Physical board or new-silicon bring-up—the W5500 lab is designed but not yet executed</li>
               <li>Oscilloscope, logic-analyzer, or JTAG work</li>
               <li>Production or upstream driver ownership</li>
               <li>Real-NIC DPDK performance validation</li>
@@ -134,13 +140,14 @@
 
       <section>
         <h2>Technical documents</h2>
+        <p>These documents are rendered on this site. GitHub is available when you want the implementation or raw artifacts.</p>
         <div class="documents">
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/e1000-contract.md"><strong>Device contract</strong><span>Registers, descriptors, DMA, and reset order</span></a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/concurrency.md"><strong>Concurrency design</strong><span>IRQ/NAPI handoff, locks, teardown, and recovery</span></a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/qualification.md"><strong>Qualification plan</strong><span>Test profiles, release gates, and evidence rules</span></a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/evidence/expected-observed.md"><strong>Test matrix</strong><span>Expected behavior compared with observed results</span></a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/interview-notes.md"><strong>Interview notes</strong><span>Questions the implementation should withstand</span></a>
-          <a href="https://github.com/blackdragoon26/xnic-v1/tree/master/evidence"><strong>Raw evidence</strong><span>Logs, counters, tool versions, and PCAPs</span></a>
+          <a href="/docs/#device-contract"><strong>Device contract</strong><span>Registers, descriptors, DMA, and reset order</span></a>
+          <a href="/docs/#concurrency"><strong>Concurrency design</strong><span>IRQ/NAPI handoff, locks, teardown, and recovery</span></a>
+          <a href="/docs/#qualification"><strong>Qualification report</strong><span>Observed results, release gates, and limitations</span></a>
+          <a href="/docs/#debugging"><strong>Debugging diary</strong><span>Symptoms, rejected hypotheses, root causes, and fixes</span></a>
+          <a href="/docs/#w5500"><strong>W5500 physical lab</strong><span>SPI contract, wiring, bring-up, and pending hardware gates</span></a>
+          <a href="/docs/#dpdk-cloud"><strong>DPDK, ENA, and RDMA</strong><span>Completed virtual result and honest cloud follow-up gates</span></a>
         </div>
       </section>
     </main>
@@ -148,7 +155,7 @@
     <footer>
       <span>XNIC</span>
       <span>Built to study the software–hardware boundary.</span>
-      <a href="https://github.com/blackdragoon26/xnic-v1">GitHub</a>
+      <a href="/docs/">Documentation</a>
     </footer>
   </body>
 </html>

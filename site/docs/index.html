@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#faf9f6" />
+    <meta name="description" content="Technical documentation for XNIC: Linux PCI Ethernet driver architecture, DMA ownership, NAPI concurrency, qualification evidence, debugging, W5500 physical-lab work, DPDK, and cloud gates." />
+    <meta property="og:title" content="XNIC technical documentation" />
+    <meta property="og:description" content="The architecture, evidence, debugging history, physical-lab plan, and honest claim boundaries behind XNIC." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://xnic-v1.vercel.app/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://xnic-v1.vercel.app/og.png" />
+    <title>XNIC documentation</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to documentation</a>
+
+    <header>
+      <a class="wordmark" href="/">XNIC</a>
+      <nav aria-label="Primary navigation">
+        <a href="/">Overview</a>
+        <a aria-current="page" href="/docs/">Documentation</a>
+        <a href="https://github.com/blackdragoon26/xnic-v1">Source code</a>
+      </nav>
+    </header>
+
+    <main class="docs-shell" id="content">
+      <section class="docs-intro">
+        <p class="label">Technical documentation · updated 8 August 2026</p>
+        <h1>The implementation, evidence, and limits—without making you read the repository.</h1>
+        <p class="summary">XNIC is two deliberately scoped Linux network-driver exercises: a PCI/DMA driver executed against QEMU’s Intel 82540EM-compatible NIC, and a W5500 SPI driver prepared for physical Raspberry Pi bring-up. This page separates what ran from what remains gated.</p>
+      </section>
+
+      <section class="status-grid" aria-label="Project status">
+        <div><span class="status pass">Passed</span><strong>PCI driver</strong><small>QEMU/HVF runtime qualification</small></div>
+        <div><span class="status pass">Passed</span><strong>DPDK forwarder</strong><small>Virtual PCAP PMD execution</small></div>
+        <div><span class="status pending">Pending hardware</span><strong>W5500 lab</strong><small>Source and software preflight complete</small></div>
+        <div><span class="status blocked">Blocked</span><strong>ENA / EFA</strong><small>Cloud credentials invalid; zero spend</small></div>
+      </section>
+
+      <div class="docs-layout">
+        <aside class="toc" aria-label="Documentation contents">
+          <strong>On this page</strong>
+          <a href="#architecture">Architecture</a>
+          <a href="#device-contract">PCI device contract</a>
+          <a href="#concurrency">Concurrency and recovery</a>
+          <a href="#qualification">Qualification evidence</a>
+          <a href="#debugging">Debugging diary</a>
+          <a href="#w5500">W5500 physical lab</a>
+          <a href="#dpdk-cloud">DPDK and cloud gates</a>
+          <a href="#boundaries">Claim boundaries</a>
+          <a href="#interview">Interview defense</a>
+        </aside>
+
+        <article class="docs-content">
+          <section id="architecture">
+            <p class="eyebrow">01 · Architecture</p>
+            <h2>One packet, four ownership domains</h2>
+            <p>Linux owns the packet first. XNIC maps the packet buffer for DMA, publishes a descriptor, and rings an MMIO doorbell. The emulated device owns that descriptor until it writes completion. The driver then orders its reads, unmaps the buffer, and returns ownership to Linux.</p>
+            <div class="diagram docs-diagram" role="img" aria-label="Packet ownership moves between Linux networking, XNIC, DMA descriptors, and the emulated network device">
+              <div><strong>Linux networking</strong><span>skb allocation and protocol stack</span></div><b aria-hidden="true">↔</b>
+              <div><strong>XNIC</strong><span>mapping, indices, lifecycle</span></div><b aria-hidden="true">↔</b>
+              <div><strong>DMA rings</strong><span>16-byte legacy descriptors</span></div><b aria-hidden="true">↔</b>
+              <div><strong>QEMU e1000</strong><span>8086:100e device model</span></div>
+            </div>
+            <h3>Deliberate scope</h3>
+            <p>One RX ring, one TX ring, 64 descriptors by default, no jumbo frames, offloads, multiqueue, RSS, MSI-X, SR-IOV, or production-family compatibility. Small scope makes ownership and recovery defensible rather than hidden behind features.</p>
+          </section>
+
+          <section id="device-contract">
+            <p class="eyebrow">02 · PCI device contract</p>
+            <h2>Registers, descriptors, and ordering</h2>
+            <p>The driver binds only to PCI ID <code>8086:100e</code>, maps BAR0, and accesses registers through ordered MMIO accessors. It negotiates coherent descriptor DMA separately from streaming packet-buffer mappings.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Register group</th><th>Implemented responsibility</th></tr></thead>
+                <tbody>
+                  <tr><td>CTRL / STATUS</td><td>Global reset, set-link-up, posted-write flush, and link observation.</td></tr>
+                  <tr><td>ICR / IMS / IMC / ITR</td><td>Interrupt cause acknowledgement, masking, re-enable, and moderation.</td></tr>
+                  <tr><td>RDBAL/H · RDLEN · RDH · RDT</td><td>One coherent legacy receive ring.</td></tr>
+                  <tr><td>TDBAL/H · TDLEN · TDH · TDT</td><td>One coherent legacy transmit ring and doorbell.</td></tr>
+                  <tr><td>RAL / RAH / EERD</td><td>Station MAC and QEMU-compatible EEPROM fallback.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="split-notes">
+              <div>
+                <h3>TX invariant</h3>
+                <ol>
+                  <li>Reserve one descriptor so full and empty never alias.</li>
+                  <li>Map the skb for <code>DMA_TO_DEVICE</code>.</li>
+                  <li>Publish descriptor contents with <code>dma_wmb()</code>.</li>
+                  <li>Write <code>TDT</code>; hardware owns the entry.</li>
+                  <li>After descriptor-done, use <code>dma_rmb()</code>, unmap, free, and advance cleanup.</li>
+                </ol>
+              </div>
+              <div>
+                <h3>RX invariant</h3>
+                <ol>
+                  <li>Map an empty skb for <code>DMA_FROM_DEVICE</code>.</li>
+                  <li>Return the descriptor through <code>RDT</code>.</li>
+                  <li>Validate completion, EOP, errors, and frame length.</li>
+                  <li>Install a replacement before returning the slot.</li>
+                  <li>Refill failure withholds ownership and schedules recovery.</li>
+                </ol>
+              </div>
+            </div>
+            <pre><code>next = (current + 1) &amp; (ring_count - 1)
+empty: next_to_use == next_to_clean
+full:  next_to_use + 1 == next_to_clean  (mod ring_count)</code></pre>
+          </section>
+
+          <section id="concurrency">
+            <p class="eyebrow">03 · Concurrency and recovery</p>
+            <h2>The interrupt/NAPI handoff</h2>
+            <p>The hard interrupt reads and acknowledges <code>ICR</code>, masks causes, and schedules NAPI. NAPI cleans TX and consumes RX only up to its budget. Interrupts stay masked while budget is exhausted. On completion, NAPI changes its state before causes are re-enabled, closing the lost-wakeup window.</p>
+            <div class="state-flow" aria-label="Reset state machine">
+              <span>RUNNING</span><b>→</b><span>DETACHED</span><b>→</b><span>IRQ QUIESCED</span><b>→</b><span>NAPI QUIESCED</span><b>→</b><span>DMA FREED</span><b>→</b><span>RESET</span><b>→</b><span>RUNNING</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Path</th><th>Context</th><th>Serialization</th></tr></thead>
+                <tbody>
+                  <tr><td>Transmit enqueue / completion</td><td>Networking caller / NAPI softirq</td><td><code>tx_lock</code></td></tr>
+                  <tr><td>Receive completion</td><td>NAPI softirq</td><td>Single NAPI instance</td></tr>
+                  <tr><td>Interrupt</td><td>Hard IRQ</td><td>Mask plus NAPI state</td></tr>
+                  <tr><td>Open / close</td><td>Process context</td><td>RTNL plus <code>reset_lock</code></td></tr>
+                  <tr><td>Recovery</td><td>Workqueue</td><td>RTNL plus <code>reset_lock</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="callout"><strong>Important lock-order result:</strong> close must not synchronously cancel a reset worker while holding RTNL; the worker may be waiting for RTNL, producing a circular wait. Removal cancels work only after <code>unregister_netdev()</code>.</p>
+          </section>
+
+          <section id="qualification">
+            <p class="eyebrow">04 · Qualification evidence</p>
+            <h2>Expected versus observed</h2>
+            <p>The recorded environment was QEMU 11.0.3 with Apple HVF, Ubuntu ARM64, Linux 6.8.0-136, GCC 13, sparse, tcpdump, and decoded PCAP inspection.</p>
+            <div class="table-wrap evidence-table">
+              <table>
+                <thead><tr><th>Scenario</th><th>Observed result</th></tr></thead>
+                <tbody>
+                  <tr><td>ICMP and ring wrap</td><td><span class="status pass">Pass</span> 646,400/646,400 replies, zero loss, 10,100 RX and TX wrap deltas.</td></tr>
+                  <tr><td>UDP and TCP</td><td><span class="status pass">Pass</span> Host received the UDP payload; a 64 MiB TCP stream completed.</td></tr>
+                  <tr><td>NAPI budget</td><td><span class="status pass">Pass</span> Below-budget completion and 328 exact-budget exhaustions under an above-budget stream.</td></tr>
+                  <tr><td>Ring-full recovery</td><td><span class="status pass">Pass</span> Deterministic 64-entry doorbell stall, queue stop, release, wake, and traffic recovery.</td></tr>
+                  <tr><td>Fault recovery</td><td><span class="status pass">Pass</span> RX allocation failure, TX watchdog, malformed descriptors, and probe stages 1–5.</td></tr>
+                  <tr><td>Reset under traffic</td><td><span class="status pass">Pass</span> 100 resets with automatic recovery and no module reload.</td></tr>
+                  <tr><td>Lifecycle</td><td><span class="status pass">Pass</span> 1,000 interface cycles and 100 complete rebind cycles.</td></tr>
+                  <tr><td>Mixed concurrency</td><td><span class="status pass">Pass</span> 30-minute run, 95 iterations, 107 cumulative resets, no driver error counters.</td></tr>
+                  <tr><td>KFENCE</td><td><span class="status pass">Pass</span> Enabled with no report in the observed runs.</td></tr>
+                  <tr><td>KASAN / lockdep</td><td><span class="status pending">Unavailable</span> Not enabled by the guest kernel; no pass is claimed.</td></tr>
+                  <tr><td>MSI execution</td><td><span class="status pending">Not observed</span> Allocation is implemented; QEMU selected legacy INTx.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="source-note">The public repository retains raw logs, PCAPs, counters, environment versions, and exact commands for independent inspection.</p>
+          </section>
+
+          <section id="debugging">
+            <p class="eyebrow">05 · Debugging diary</p>
+            <h2>What failed, what I believed, and what was actually wrong</h2>
+            <div class="case-study">
+              <h3>Runtime bug: ring-full transition was invisible</h3>
+              <dl>
+                <dt>Symptom</dt><dd>A stalled TX ring stopped Linux’s queue, but the <code>tx_ring_full</code> diagnostic did not reliably advance.</dd>
+                <dt>Wrong hypothesis</dt><dd>Completion cleanup was racing the deliberate doorbell stall.</dd>
+                <dt>Corrected evidence</dt><dd>Flood ping generated too little deterministic pressure. A 4,096-frame AF_PACKET sender reproduced ownership independently of ping flow control.</dd>
+                <dt>Root cause</dt><dd>Full state was diagnosed only on a future transmit call. Linux had already honored the queue stop and was not required to call again.</dd>
+                <dt>Fix</dt><dd>Detect the transition immediately after consuming the final usable descriptor while holding the same lock as completion cleanup.</dd>
+              </dl>
+            </div>
+            <div class="case-study">
+              <h3>Build bugs: current kernel APIs moved</h3>
+              <p>Clean Linux 6.17 CI rejected the obsolete <code>PCI_IRQ_LEGACY</code> name; current upstream uses <code>PCI_IRQ_INTX</code>. The W5500 module also included an unaligned-access header that moved between Linux 6.8 and 6.17. Explicit two-byte big-endian helpers removed that cross-version dependency. Both fixes were then compiled with GCC and sparse against ARM64 6.8 and x86-64 6.17 headers.</p>
+            </div>
+            <div class="case-study">
+              <h3>W5500 metadata bug: the obvious ID was still wrong</h3>
+              <p>The SPI core warned that no ID matched <code>xnic,w5500-lab</code>. Adding the complete compatible string did not fix it. Inspection showed the core strips the vendor prefix and matches <code>w5500-lab</code>; adding that suffix produced 100 silent load/unload cycles.</p>
+            </div>
+          </section>
+
+          <section id="w5500">
+            <p class="eyebrow">06 · W5500 physical-lab track</p>
+            <h2>A second driver designed for real wires</h2>
+            <p>The W5500 driver uses Socket 0 in MACRAW mode with all 16 KiB TX and RX memory assigned to it. Synchronous SPI can sleep, so TX runs in a work item and RX in a threaded interrupt—not NAPI or hard-IRQ context.</p>
+            <div class="split-notes">
+              <div>
+                <h3>Software complete</h3>
+                <ul>
+                  <li>SPI mode 0 VDM register and buffer transfers</li>
+                  <li>16 KiB boundary split and stable size-register reads</li>
+                  <li>TX backpressure, threaded RX, link polling, ethtool counters</li>
+                  <li>Serialized reset and deterministic <code>force_reset</code> trigger</li>
+                  <li>ARM64 Linux 6.8 GCC/sparse build, ten contract tests, overlay build</li>
+                  <li>100 unbound module lifecycles with zero kernel messages</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Physical evidence pending</h3>
+                <ul>
+                  <li>3.3 V rail and reset timing on an oscilloscope</li>
+                  <li><code>VERSIONR == 0x04</code> and SPI framing on a logic analyzer</li>
+                  <li>ARP, ICMP, UDP, TCP, and broadcast PCAPs</li>
+                  <li>Buffer wrap, saturation, 100 link cycles, 100 resets</li>
+                  <li>KASAN/KFENCE/lockdep on the board kernel</li>
+                  <li>30 minutes of mixed physical traffic</li>
+                </ul>
+              </div>
+            </div>
+            <h3>Raspberry Pi wiring contract</h3>
+            <div class="table-wrap compact-table">
+              <table>
+                <thead><tr><th>Pi pin</th><th>BCM signal</th><th>WIZ850io</th></tr></thead>
+                <tbody>
+                  <tr><td>17</td><td>3.3 V</td><td>3.3 V</td></tr><tr><td>20</td><td>Ground</td><td>Ground</td></tr>
+                  <tr><td>19</td><td>GPIO10 / MOSI</td><td>MOSI</td></tr><tr><td>21</td><td>GPIO9 / MISO</td><td>MISO</td></tr>
+                  <tr><td>23</td><td>GPIO11 / SCLK</td><td>SCLK</td></tr><tr><td>24</td><td>GPIO8 / CE0</td><td>SCSn</td></tr>
+                  <tr><td>22</td><td>GPIO25</td><td>INTn</td></tr><tr><td>18</td><td>GPIO24</td><td>RSTn</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="callout warning"><strong>Current truth:</strong> no board is connected. This is implemented, software-qualified preparation for physical bring-up—not evidence that physical bring-up has happened.</p>
+          </section>
+
+          <section id="dpdk-cloud">
+            <p class="eyebrow">07 · DPDK and cloud gates</p>
+            <h2>Completed mechanics, pending hardware</h2>
+            <h3>DPDK result that exists</h3>
+            <p>A compact DPDK 23.11 <code>rte_ethdev</code> forwarder initializes one port and queue, uses mempool-backed bursts, performs L2 forwarding, frees unsent mbufs after partial TX, counts drops, and shuts down cleanly on signals. The virtual <code>net_pcap</code> PMD executed 20 RX and 20 TX with zero drops; deterministic partial-TX and SIGTERM paths passed.</p>
+            <h3>ENA result that does not exist yet</h3>
+            <p>Real ENA validation requires a dedicated DPDK interface while the management interface remains kernel-owned. Infrastructure must pass <code>testpmd</code> first, then preserve topology, hugepages, IOMMU groups, frame sizes, offered load, xstats, loss, and termination evidence.</p>
+            <h3>EFA / RDMA result that does not exist yet</h3>
+            <p>Two EFA nodes must share a subnet and Availability Zone. The gate requires <code>fi_info</code>, <code>fi_pingpong</code>, and <code>fi_rdm_bw</code> with CPU affinity, message sizes, repetitions, tail latency, bandwidth, errors, and a TCP baseline.</p>
+            <pre><code>fi_info -p efa -t FI_EP_RDM
+fi_pingpong -p efa &lt;peer-private-address&gt;
+fi_rdm_bw -p efa &lt;peer-private-address&gt;</code></pre>
+            <p class="callout warning"><strong>Cloud status:</strong> AWS identity returned <code>InvalidClientTokenId</code>. No instance was launched and no cost was incurred.</p>
+          </section>
+
+          <section id="boundaries">
+            <p class="eyebrow">08 · Claim boundaries</p>
+            <h2>What the evidence permits me to say</h2>
+            <div class="boundaries">
+              <div>
+                <h3>Defensible now</h3>
+                <ul>
+                  <li>Clean-room Linux PCI Ethernet driver in C against QEMU’s 82540EM-compatible interface</li>
+                  <li>DMA rings, descriptor ownership, MMIO ordering, interrupt/NAPI synchronization, and recovery</li>
+                  <li>Fault injection, tcpdump/PCAP investigation, GCC, sparse, and cross-kernel CI</li>
+                  <li>Functional DPDK application mechanics through a virtual PMD</li>
+                  <li>W5500 SPI driver implementation and software preflight</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Not defensible yet</h3>
+                <ul>
+                  <li>Physical-silicon or board bring-up</li>
+                  <li>Oscilloscope, logic-analyzer, or JTAG validation</li>
+                  <li>Production or upstream driver ownership</li>
+                  <li>Real-NIC DPDK performance or ENA execution</li>
+                  <li>RDMA, EFA, ConnectX, or RoCE execution</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <section id="interview">
+            <p class="eyebrow">09 · Interview defense</p>
+            <h2>Questions this implementation should withstand</h2>
+            <ul class="question-list">
+              <li>Why does the TX ring reserve one descriptor?</li>
+              <li>Why is <code>dma_wmb()</code> before <code>TDT</code>, and <code>dma_rmb()</code> after descriptor-done?</li>
+              <li>Why are descriptor DMA and packet-buffer mappings different?</li>
+              <li>What closes the interrupt/NAPI lost-wakeup window?</li>
+              <li>What happens when RX refill fails after consuming a packet?</li>
+              <li>Why can <code>cancel_work_sync()</code> under RTNL deadlock?</li>
+              <li>Why does synchronous SPI change the W5500 execution model?</li>
+              <li>Who owns unsent mbufs after a partial <code>rte_eth_tx_burst()</code>?</li>
+              <li>What exactly does QEMU validation fail to establish about silicon?</li>
+            </ul>
+            <p class="source-note">The strongest answer names an invariant, the observed evidence, and what that evidence does not prove.</p>
+            <div class="actions">
+              <a class="primary" href="/">Return to overview</a>
+              <a href="https://github.com/blackdragoon26/xnic-v1">Inspect source and raw evidence</a>
+            </div>
+          </section>
+        </article>
+      </div>
+    </main>
+
+    <footer>
+      <span>XNIC</span><span>Documentation rendered from the project’s verified scope.</span><a href="/">Overview</a>
+    </footer>
+  </body>
+</html>
