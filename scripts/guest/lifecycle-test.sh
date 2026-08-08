@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 PROFILE=${1:-tcg}
 case "$PROFILE" in
 	hvf|kvm) IF_CYCLES=1000; MOD_CYCLES=100 ;;

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 CACHE="$ROOT/.cache"
 DISK="$CACHE/xnic-guest.qcow2"
 SEED="$CACHE/seed.iso"

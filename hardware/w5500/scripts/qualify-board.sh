@@ -5,7 +5,7 @@ IFACE=${XW5_IFACE:-}
 PEER=${XW5_PEER:-}
 DURATION=${XW5_DURATION:-300}
 RESET_CYCLES=${XW5_RESET_CYCLES:-100}
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 STAMP=$(date -u '+%Y%m%dT%H%M%SZ')
 OUT="$ROOT/evidence/$STAMP"
 

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 CACHE="$ROOT/.cache"
 SEED="$CACHE/seed"
 PUBKEY=${XNIC_SSH_PUBLIC_KEY:-$HOME/.ssh/id_ed25519.pub}

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 if command -v shellcheck >/dev/null 2>&1; then
 	find "$ROOT/scripts" "$ROOT/hardware/w5500/scripts" "$ROOT/cloud/scripts" \
 		-type f -name '*.sh' \

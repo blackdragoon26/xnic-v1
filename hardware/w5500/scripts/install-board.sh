@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 OVERLAY="$ROOT/dts/xnic-w5500.dtbo"
 BOOT_OVERLAYS=/boot/firmware/overlays
 CONFIG=/boot/firmware/config.txt
