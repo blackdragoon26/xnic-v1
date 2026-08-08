@@ -948,7 +948,7 @@ static int xnic_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		err = -EIO;
 		goto err_iounmap;
 	}
-	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_INTX);
 	if (err < 0)
 		goto err_iounmap;
 	adapter->irq = pci_irq_vector(pdev, 0);
