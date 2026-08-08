@@ -25,6 +25,7 @@ fi
 
 install -m 0644 "$OVERLAY" "$BOOT_OVERLAYS/xnic-w5500.dtbo"
 grep -qxF 'dtparam=spi=on' "$CONFIG" || printf '\ndtparam=spi=on\n' >> "$CONFIG"
-grep -qxF 'dtoverlay=xnic-w5500' "$CONFIG" || printf 'dtoverlay=xnic-w5500\n' >> "$CONFIG"
+grep -qE '^[[:space:]]*dtoverlay=xnic-w5500([,[:space:]]|$)' "$CONFIG" || \
+	printf 'dtoverlay=xnic-w5500\n' >> "$CONFIG"
 
 echo "overlay installed; reboot is required"

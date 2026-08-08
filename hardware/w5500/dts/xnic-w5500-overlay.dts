@@ -19,7 +19,6 @@
 				/* IRQ_TYPE_LEVEL_LOW = 8, GPIO_ACTIVE_LOW = 1. */
 				interrupts = <25 8>;
 				reset-gpios = <&gpio 24 1>;
-				local-mac-address = [02 58 4e 49 43 01];
 				status = "okay";
 			};
 		};

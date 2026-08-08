@@ -23,6 +23,7 @@
 #include <linux/property.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/spi/spi.h>
 #include <linux/workqueue.h>
@@ -51,7 +52,10 @@ struct xw5_priv {
 	struct work_struct tx_work;
 	struct work_struct reset_work;
 	struct delayed_work link_work;
+	struct delayed_work rx_retry_work;
 	struct completion tx_done;
+	u8 *spi_header;
+	u8 *spi_data;
 	struct rtnl_link_stats64 net_stats;
 	struct xw5_stats diag;
 	int tx_result;
@@ -102,24 +106,32 @@ static void xw5_put_be16(u16 value, u8 *bytes)
 static int xw5_xfer(struct xw5_priv *priv, u16 addr, u8 block,
 		    bool write, void *data, size_t len)
 {
-	u8 header[3] = { addr >> 8, addr & 0xff, XW5_CTRL(block, write) };
 	struct spi_transfer transfers[2] = {
-		{ .tx_buf = header, .len = sizeof(header) },
+		{ .tx_buf = priv->spi_header, .len = XW5_SPI_HEADER_LEN },
 		{ .len = len },
 	};
 	int ret;
 
-	if (!len)
+	if (!len || len > XW5_MEM_SIZE)
 		return -EINVAL;
 
-	if (write)
-		transfers[1].tx_buf = data;
-	else
-		transfers[1].rx_buf = data;
+	/* hw_lock serializes reuse of these DMA-safe, device-owned buffers. */
+	priv->spi_header[0] = addr >> 8;
+	priv->spi_header[1] = addr & 0xff;
+	priv->spi_header[2] = XW5_CTRL(block, write);
+	if (write) {
+		memcpy(priv->spi_data, data, len);
+		transfers[1].tx_buf = priv->spi_data;
+	} else {
+		transfers[1].rx_buf = priv->spi_data;
+	}
 
 	ret = spi_sync_transfer(priv->spi, transfers, ARRAY_SIZE(transfers));
-	if (ret)
+	if (ret) {
 		xw5_diag_inc(priv, &priv->diag.spi_errors);
+	} else if (!write) {
+		memcpy(data, priv->spi_data, len);
+	}
 	return ret;
 }
 
@@ -385,12 +397,68 @@ static int xw5_rx_one(struct xw5_priv *priv)
 	return 1;
 }
 
+static int xw5_drain_rx(struct xw5_priv *priv)
+{
+	int ret = 0, work;
+
+	do {
+		work = 0;
+		while (work < XW5_IRQ_RX_BUDGET) {
+			ret = xw5_rx_one(priv);
+			if (ret <= 0)
+				break;
+			work++;
+		}
+		if (work == XW5_IRQ_RX_BUDGET) {
+			xw5_diag_inc(priv, &priv->diag.rx_budget_exhausted);
+			cond_resched();
+		}
+	} while (work == XW5_IRQ_RX_BUDGET &&
+		 !READ_ONCE(priv->stopping));
+
+	return ret;
+}
+
+static bool xw5_rx_error_is_transient(int ret)
+{
+	return ret == -ENOMEM || ret == -EAGAIN;
+}
+
+static void xw5_handle_rx_result(struct xw5_priv *priv, int ret)
+{
+	if (READ_ONCE(priv->stopping))
+		return;
+
+	if (xw5_rx_error_is_transient(ret)) {
+		schedule_delayed_work(&priv->rx_retry_work,
+				      msecs_to_jiffies(10));
+	} else if (ret < 0) {
+		schedule_work(&priv->reset_work);
+	}
+}
+
+static void xw5_rx_retry_work(struct work_struct *work)
+{
+	struct xw5_priv *priv =
+		container_of(to_delayed_work(work), struct xw5_priv,
+			     rx_retry_work);
+	int ret;
+
+	if (READ_ONCE(priv->stopping))
+		return;
+
+	mutex_lock(&priv->hw_lock);
+	ret = xw5_drain_rx(priv);
+	mutex_unlock(&priv->hw_lock);
+	xw5_handle_rx_result(priv, ret);
+}
+
 static irqreturn_t xw5_irq_thread(int irq, void *data)
 {
 	struct net_device *netdev = data;
 	struct xw5_priv *priv = netdev_priv(netdev);
 	u8 status;
-	int ret, work = 0;
+	int ret;
 
 	xw5_diag_inc(priv, &priv->diag.irq_count);
 	if (READ_ONCE(priv->stopping))
@@ -414,26 +482,11 @@ static irqreturn_t xw5_irq_thread(int irq, void *data)
 		complete(&priv->tx_done);
 	}
 
-	if (status & XW5_SN_IR_RECV) {
-		do {
-			work = 0;
-			while (work < XW5_IRQ_RX_BUDGET) {
-				ret = xw5_rx_one(priv);
-				if (ret <= 0)
-					break;
-				work++;
-			}
-			if (work == XW5_IRQ_RX_BUDGET) {
-				xw5_diag_inc(priv, &priv->diag.rx_budget_exhausted);
-				cond_resched();
-			}
-		} while (work == XW5_IRQ_RX_BUDGET &&
-			 !READ_ONCE(priv->stopping));
-	}
+	if (status & XW5_SN_IR_RECV)
+		ret = xw5_drain_rx(priv);
 out:
 	mutex_unlock(&priv->hw_lock);
-	if (ret < 0)
-		schedule_work(&priv->reset_work);
+	xw5_handle_rx_result(priv, ret);
 	return IRQ_HANDLED;
 }
 
@@ -558,6 +611,7 @@ static void xw5_reset_work(struct work_struct *work)
 		priv->irq_enabled = false;
 	}
 	cancel_delayed_work_sync(&priv->link_work);
+	cancel_delayed_work_sync(&priv->rx_retry_work);
 	cancel_work_sync(&priv->tx_work);
 	xw5_drop_tx_queue(priv);
 
@@ -651,6 +705,7 @@ static int xw5_stop(struct net_device *netdev)
 		priv->irq_enabled = false;
 	}
 	cancel_delayed_work_sync(&priv->link_work);
+	cancel_delayed_work_sync(&priv->rx_retry_work);
 	cancel_work_sync(&priv->tx_work);
 	xw5_drop_tx_queue(priv);
 	mutex_lock(&priv->hw_lock);
@@ -794,8 +849,16 @@ static int xw5_probe(struct spi_device *spi)
 	INIT_WORK(&priv->tx_work, xw5_tx_work);
 	INIT_WORK(&priv->reset_work, xw5_reset_work);
 	INIT_DELAYED_WORK(&priv->link_work, xw5_link_work);
+	INIT_DELAYED_WORK(&priv->rx_retry_work, xw5_rx_retry_work);
 	init_completion(&priv->tx_done);
 	WRITE_ONCE(priv->stopping, true);
+	priv->spi_header = devm_kmalloc(&spi->dev, XW5_SPI_HEADER_LEN,
+					GFP_KERNEL);
+	priv->spi_data = devm_kmalloc(&spi->dev, XW5_MEM_SIZE, GFP_KERNEL);
+	if (!priv->spi_header || !priv->spi_data) {
+		ret = -ENOMEM;
+		goto free_netdev;
+	}
 
 	priv->reset_gpio = devm_gpiod_get_optional(&spi->dev, "reset",
 						    GPIOD_OUT_LOW);
@@ -861,6 +924,7 @@ static void xw5_remove(struct spi_device *spi)
 	unregister_netdev(netdev);
 	cancel_work_sync(&priv->tx_work);
 	cancel_delayed_work_sync(&priv->link_work);
+	cancel_delayed_work_sync(&priv->rx_retry_work);
 	xw5_drop_tx_queue(priv);
 	spi_set_drvdata(spi, NULL);
 	free_netdev(netdev);

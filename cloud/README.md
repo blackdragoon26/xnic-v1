@@ -13,9 +13,11 @@ Run the read-only preflight after repairing credentials:
 AWS_REGION=eu-north-1 ./cloud/scripts/aws-preflight.sh
 ```
 
-It verifies identity, lists available zones and EFA-capable instance types, and
-shows relevant EC2 on-demand quotas. It cannot launch, modify, or terminate a
-resource.
+It verifies identity, lists regional feature metadata and available zones, and
+shows configured EC2 on-demand quota limits. With both
+`AWS_AVAILABILITY_ZONE` and `AWS_INSTANCE_TYPE` set, it also checks whether
+that type is offered in that zone. These checks do not prove current launch
+capacity. The script cannot launch, modify, or terminate a resource.
 
 ## Mandatory cost gate
 
@@ -57,7 +59,14 @@ The EFA security group permits all traffic to and from itself. Install the AWS
 EFA software stack with Libfabric, then require:
 
 ```sh
+# Run on both nodes to verify the provider.
 fi_info -p efa -t FI_EP_RDM
+
+# Run on the server/listener first (no destination argument).
+fi_pingpong -p efa
+fi_rdm_bw -p efa
+
+# Run the matching command on the client, using the server address.
 fi_pingpong -p efa <peer-private-address>
 fi_rdm_bw -p efa <peer-private-address>
 ```

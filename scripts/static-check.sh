@@ -9,7 +9,8 @@ if command -v shellcheck >/dev/null 2>&1; then
 else
 	echo "SKIP shellcheck (not installed)"
 fi
-for script in "$ROOT"/scripts/host/*.sh "$ROOT"/scripts/guest/*.sh; do
+for script in "$ROOT"/scripts/*.sh "$ROOT"/scripts/host/*.sh \
+	"$ROOT"/scripts/guest/*.sh; do
 	sh -n "$script"
 done
 for script in "$ROOT"/hardware/w5500/scripts/*.sh; do
@@ -25,14 +26,23 @@ else
 	echo "SKIP website JavaScript syntax check (node unavailable)"
 fi
 
-if [ -d "/lib/modules/$(uname -r)/build" ]; then
-	make -C "$ROOT/driver"
+KDIR=${KDIR:-}
+if [ -z "$KDIR" ] && [ -d /usr/src ]; then
+	KDIR=$(find /usr/src -maxdepth 1 -type d \
+		-name 'linux-headers-*-generic' | sort | tail -1)
+fi
+if [ -z "$KDIR" ]; then
+	KDIR="/lib/modules/$(uname -r)/build"
+fi
+
+if [ -d "$KDIR" ]; then
+	make -C "$ROOT/driver" KDIR="$KDIR"
 	if command -v sparse >/dev/null 2>&1; then
-		make -C "/lib/modules/$(uname -r)/build" M="$ROOT/driver" C=2 modules
+		make -C "$KDIR" M="$ROOT/driver" C=2 modules
 	fi
-	make -C "$ROOT/hardware/w5500/driver"
+	make -C "$ROOT/hardware/w5500/driver" KDIR="$KDIR"
 	if command -v sparse >/dev/null 2>&1; then
-		make -C "/lib/modules/$(uname -r)/build" \
+		make -C "$KDIR" \
 			M="$ROOT/hardware/w5500/driver" C=2 modules
 	fi
 else

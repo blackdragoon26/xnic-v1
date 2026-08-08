@@ -75,6 +75,10 @@ Synchronous Linux SPI calls may sleep. Consequently:
 - the threaded IRQ performs RX and completion register I/O;
 - `ndo_start_xmit` only validates and queues an skb;
 - a work item performs TX SPI I/O;
+- SPI messages use private, heap-backed bounce buffers rather than stack
+  storage, and `hw_lock` serializes ownership of those buffers;
+- RX allocation failures and unstable size reads leave the record unconsumed
+  and schedule a delayed retry; protocol and transport failures use reset;
 - NAPI is deliberately not used for synchronous SPI transfers;
 - lifecycle and reset paths disable/synchronize IRQ, wake a waiting TX worker,
   cancel works, close/rebuild the socket, and only then reattach the netdev.
