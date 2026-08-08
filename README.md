@@ -3,6 +3,12 @@
 XNIC is a deliberately constrained, clean-room Linux network driver for the
 Intel 82540EM-compatible PCI interface exposed by QEMU's `e1000` device.
 
+Project walkthrough: **[xnic-v1.vercel.app](https://xnic-v1.vercel.app)**
+
+The dependency-free static site lives under `site/`. Its local `.vercel/` link
+is intentionally ignored; Git integration can later point the Vercel project
+at the `site` root directory for automatic preview and production deployments.
+
 Current build/runtime truth is tracked in
 [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md); do not infer validation
 from the presence of source code.
