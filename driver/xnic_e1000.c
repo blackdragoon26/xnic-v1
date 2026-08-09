@@ -1050,7 +1050,7 @@ static struct pci_driver xnic_driver = {
 };
 module_pci_driver(xnic_driver);
 
-MODULE_AUTHOR("XNIC contributors");
+MODULE_AUTHOR("Sankalp Jha");
 MODULE_DESCRIPTION("Educational clean-room Intel 82540EM-compatible network driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(XNIC_DRV_VERSION);

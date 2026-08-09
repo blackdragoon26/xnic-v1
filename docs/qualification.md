@@ -29,5 +29,5 @@ where headers/toolchains permit; run sparse separately.
 - contract, concurrency notes, limitations and expected/observed matrix agree;
 - a clean checkout builds and executes the demo.
 
-Failure keeps the project in driver work. It does not authorize a DPDK résumé
-claim.
+Failure keeps the project below its driver release gate and prevents dependent
+DPDK validation from being reported as a qualified result.

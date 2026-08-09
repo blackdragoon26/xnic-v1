@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#faf9f6" />
+    <meta name="author" content="Sankalp Jha" />
     <meta
       name="description"
       content="XNIC is a small Linux Ethernet driver built in C to study PCI, DMA rings, interrupts, NAPI, and recovery."
@@ -19,6 +20,21 @@
     <meta name="twitter:image" content="https://xnic-v1.vercel.app/og.png" />
     <title>XNIC — Linux Ethernet Driver</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        "name": "XNIC",
+        "codeRepository": "https://github.com/blackdragoon26/xnic-v1",
+        "programmingLanguage": ["C", "Shell", "Python"],
+        "runtimePlatform": "Linux",
+        "author": {
+          "@type": "Person",
+          "name": "Sankalp Jha",
+          "url": "https://github.com/blackdragoon26"
+        }
+      }
+    </script>
     <script src="/theme.js"></script>
     <link rel="stylesheet" href="/styles.css" />
   </head>
@@ -31,6 +47,7 @@
         <nav aria-label="Primary navigation">
           <a href="#how">How it works</a>
           <a href="#results">Results</a>
+          <a href="#run">Run it</a>
           <a href="/docs/">Documentation</a>
           <a href="https://github.com/blackdragoon26/xnic-v1">Source code</a>
         </nav>
@@ -45,6 +62,7 @@
       <section class="intro" id="top">
         <p class="label">Linux · C · PCI · networking</p>
         <h1>A small Linux Ethernet driver, built to understand what happens between the kernel and a network card.</h1>
+        <p class="byline">Designed and developed by <a href="https://github.com/blackdragoon26">Sankalp Jha</a>.</p>
         <p class="summary">
           XNIC controls an emulated Intel 82540EM-compatible network device in QEMU. It sends and receives real packets, handles interrupts, and recovers from resets while traffic is running.
         </p>
@@ -52,7 +70,7 @@
           <a class="primary" href="/docs/">Read the documentation</a>
           <a href="https://github.com/blackdragoon26/xnic-v1">View the source</a>
         </div>
-        <p class="note">This is an educational driver validated with an emulated device. It is not a claim of physical-silicon or production-driver experience.</p>
+        <p class="note">This is an educational driver validated with an emulated device. No physical-silicon or production-readiness conclusion is drawn.</p>
       </section>
 
       <section id="how">
@@ -110,9 +128,9 @@
       </section>
 
       <section>
-        <h2>One bug I can explain</h2>
+        <h2>A bug the evidence exposed</h2>
         <p>
-          A stalled 64-entry transmit ring stopped the Linux queue, but the diagnostic counter did not always show that the ring had become full. I first suspected completion timing. The real problem was that “full” was detected only on a future transmit call—after Linux had already honored the queue stop and might never call again.
+          A stalled 64-entry transmit ring stopped the Linux queue, but the diagnostic counter did not always show that the ring had become full. The initial hypothesis was completion timing. The real problem was that “full” was detected only on a future transmit call—after Linux had already honored the queue stop and might never call again.
         </p>
         <p>
           The fix was to detect the transition immediately after consuming the last usable descriptor, under the same lock used by completion cleanup. The reproducer, rejected hypothesis, root cause, synchronization reasoning, and regression test are recorded in the <a href="/docs/#debugging">bug diary</a>.
@@ -120,20 +138,20 @@
       </section>
 
       <section>
-        <h2>What this proves—and what it does not</h2>
+        <h2>Validation boundary</h2>
         <div class="boundaries">
           <div>
-            <h3>Evidence this project provides</h3>
+            <h3>Validated in this repository</h3>
             <ul>
-              <li>Hands-on Linux PCI and netdev driver work in C</li>
+              <li>Linux PCI and netdev driver behavior in QEMU</li>
               <li>DMA descriptor ownership and memory ordering</li>
               <li>Interrupt/NAPI and teardown synchronization</li>
               <li>Repeatable debugging and fault-path testing</li>
-              <li>Functional DPDK and packet-capture experience</li>
+              <li>Functional DPDK and packet-capture paths</li>
             </ul>
           </div>
           <div>
-            <h3>Experience it does not replace</h3>
+            <h3>Not validated yet</h3>
             <ul>
               <li>Physical board or new-silicon bring-up—the W5500 lab is designed but not yet executed</li>
               <li>Oscilloscope, logic-analyzer, or JTAG work</li>
@@ -145,6 +163,48 @@
         </div>
       </section>
 
+      <section id="run">
+        <p class="label">Reproduce it</p>
+        <h2>Run the same driver path yourself</h2>
+        <p>
+          The recorded baseline uses an Apple Silicon Mac, QEMU/HVF, an Ubuntu 24.04 ARM64 guest, 4 GiB of guest RAM, an Ed25519 SSH key, and roughly 8 GiB of free host storage. TCG is the slower fallback.
+        </p>
+        <div class="run-grid">
+          <div>
+            <h3>1 · Launch the guest</h3>
+            <pre class="command-block"><code>git clone https://github.com/blackdragoon26/xnic-v1.git
+cd xnic-v1
+./scripts/host/bootstrap-macos.sh
+./scripts/host/fetch-guest.sh
+./scripts/host/run-qemu.sh</code></pre>
+          </div>
+          <div>
+            <h3>2 · Copy, build, and bind</h3>
+            <pre class="command-block"><code>./scripts/host/sync-to-guest.sh
+ssh -p 2222 xnic@127.0.0.1
+cd ~/xnic-v1
+sudo ./scripts/guest/setup.sh
+make
+sudo ./scripts/guest/bind-driver.sh</code></pre>
+          </div>
+        </div>
+        <p>
+          Then inspect <code>ip -br link</code>, <code>ethtool -i xnic0</code>, and <code>ethtool -S xnic0</code>, or run <code>sudo ./scripts/guest/qualification-suite.sh</code>. The <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/reproducing.md">complete reproduction guide</a> includes expected observations, qualification, cleanup, and Linux-host notes.
+        </p>
+      </section>
+
+      <section>
+        <p class="label">Confidence roadmap</p>
+        <h2>The next evidence that would materially strengthen XNIC</h2>
+        <ol class="milestones">
+          <li><strong>Independent reproduction:</strong> a clean run performed by someone other than the author.</li>
+          <li><strong>Diagnostic kernel:</strong> complete qualification under KASAN and lockdep, with MSI actually selected.</li>
+          <li><strong>Physical bring-up:</strong> W5500 electrical, logic-analyzer, traffic, reset, and lifecycle artifacts from a Raspberry Pi.</li>
+          <li><strong>Physical DPDK path:</strong> a real PMD, controlled traffic peer, topology, repetitions, and raw counters.</li>
+          <li><strong>Release provenance:</strong> a signed tag and short demonstration tied to an exact evidence manifest.</li>
+        </ol>
+      </section>
+
       <section>
         <h2>Technical documents</h2>
         <p>These documents are rendered on this site. GitHub is available when you want the implementation or raw artifacts.</p>
@@ -154,14 +214,25 @@
           <a href="/docs/#qualification"><strong>Qualification report</strong><span>Observed results, release gates, and limitations</span></a>
           <a href="/docs/#debugging"><strong>Debugging diary</strong><span>Symptoms, rejected hypotheses, root causes, and fixes</span></a>
           <a href="/docs/#w5500"><strong>W5500 physical lab</strong><span>SPI contract, wiring, bring-up, and pending hardware gates</span></a>
-          <a href="/docs/#dpdk-cloud"><strong>DPDK, ENA, and RDMA</strong><span>Completed virtual result and honest cloud follow-up gates</span></a>
+          <a href="/docs/#dpdk-cloud"><strong>DPDK, ENA, and RDMA</strong><span>Completed virtual result and gated cloud follow-up</span></a>
+        </div>
+      </section>
+
+      <section id="author" class="author-section">
+        <p class="label">Author</p>
+        <h2>Built by Sankalp Jha</h2>
+        <p>XNIC is designed, implemented, tested, documented, and maintained by Sankalp Jha. Technical corrections and evidence-backed contributions are welcome.</p>
+        <div class="actions">
+          <a class="primary" href="https://github.com/blackdragoon26">GitHub profile</a>
+          <a href="https://www.linkedin.com/in/sankalp-jha-18a95a244/">LinkedIn</a>
+          <a href="https://github.com/blackdragoon26/xnic-v1/blob/master/CONTRIBUTING.md">Contributing guide</a>
         </div>
       </section>
     </main>
 
     <footer>
       <span>XNIC</span>
-      <span>Built to study the software–hardware boundary.</span>
+      <span>Designed and developed by <a href="https://github.com/blackdragoon26">Sankalp Jha</a>.</span>
       <a href="/docs/">Documentation</a>
     </footer>
   </body>

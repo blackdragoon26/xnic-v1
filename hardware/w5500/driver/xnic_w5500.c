@@ -954,7 +954,7 @@ static struct spi_driver xw5_driver = {
 };
 module_spi_driver(xw5_driver);
 
-MODULE_AUTHOR("XNIC project");
+MODULE_AUTHOR("Sankalp Jha");
 MODULE_DESCRIPTION("Clean-room W5500 MACRAW SPI Ethernet lab driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(XW5_DRV_VERSION);

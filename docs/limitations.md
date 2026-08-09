@@ -19,8 +19,8 @@ Safe public wording is “clean-room Linux PCI Ethernet driver against an Intel
 bring-up, production deployment, or upstream-driver parity.
 
 DPDK and RDMA are separate gates. The DPDK `net_pcap` PMD now has raw execution
-evidence, but ENA, physical-PMD, and performance wording remains prohibited.
-RDMA has no execution evidence and must not appear in résumé project bullets.
+evidence, but ENA, physical-PMD, and performance conclusions remain unsupported.
+RDMA has no execution evidence and must not be presented as validated behavior.
 
 The QEMU user-mode network used by the reproducible harness does not expose a
 physical carrier control or a host TAP endpoint. Software interface down/up,

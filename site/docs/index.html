@@ -4,9 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#faf9f6" />
+    <meta name="author" content="Sankalp Jha" />
     <meta name="description" content="Technical documentation for XNIC: Linux PCI Ethernet driver architecture, DMA ownership, NAPI concurrency, qualification evidence, debugging, W5500 physical-lab work, DPDK, and cloud gates." />
     <meta property="og:title" content="XNIC technical documentation" />
-    <meta property="og:description" content="The architecture, evidence, debugging history, physical-lab plan, and honest claim boundaries behind XNIC." />
+    <meta property="og:description" content="The architecture, evidence, debugging history, physical-lab plan, and validation boundaries behind XNIC." />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://xnic-v1.vercel.app/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -36,7 +37,7 @@
 
     <main class="docs-shell" id="content">
       <section class="docs-intro">
-        <p class="label">Technical documentation · updated 8 August 2026</p>
+        <p class="label">Technical documentation · updated 9 August 2026</p>
         <h1>The implementation, evidence, and limits—without making you read the repository.</h1>
         <p class="summary">XNIC is two deliberately scoped Linux network-driver exercises: a PCI/DMA driver executed against QEMU’s Intel 82540EM-compatible NIC, and a W5500 SPI driver prepared for physical Raspberry Pi bring-up. This page separates what ran from what remains gated.</p>
       </section>
@@ -45,7 +46,7 @@
         <div><span class="status pass">Passed</span><strong>PCI driver</strong><small>QEMU/HVF runtime qualification</small></div>
         <div><span class="status pass">Passed</span><strong>DPDK forwarder</strong><small>Virtual PCAP PMD execution</small></div>
         <div><span class="status pending">Pending hardware</span><strong>W5500 lab</strong><small>Source and software preflight complete</small></div>
-        <div><span class="status blocked">Blocked</span><strong>ENA / EFA</strong><small>Cloud credentials invalid; zero spend</small></div>
+        <div><span class="status blocked">Not executed</span><strong>ENA / EFA</strong><small>No cloud runtime evidence published</small></div>
       </section>
 
       <div class="docs-layout">
@@ -58,8 +59,8 @@
           <a href="#debugging">Debugging diary</a>
           <a href="#w5500">W5500 physical lab</a>
           <a href="#dpdk-cloud">DPDK and cloud gates</a>
-          <a href="#boundaries">Claim boundaries</a>
-          <a href="#interview">Interview defense</a>
+          <a href="#boundaries">Validation boundaries</a>
+          <a href="#reproduce">Reproduce XNIC</a>
         </aside>
 
         <article class="docs-content">
@@ -170,7 +171,7 @@ full:  next_to_use + 1 == next_to_clean  (mod ring_count)</code></pre>
 
           <section id="debugging">
             <p class="eyebrow">05 · Debugging diary</p>
-            <h2>What failed, what I believed, and what was actually wrong</h2>
+            <h2>Observed failures and corrected hypotheses</h2>
             <div class="case-study">
               <h3>Runtime bug: ring-full transition was invisible</h3>
               <dl>
@@ -246,15 +247,15 @@ full:  next_to_use + 1 == next_to_clean  (mod ring_count)</code></pre>
             <pre><code>fi_info -p efa -t FI_EP_RDM
 fi_pingpong -p efa &lt;peer-private-address&gt;
 fi_rdm_bw -p efa &lt;peer-private-address&gt;</code></pre>
-            <p class="callout warning"><strong>Cloud status:</strong> AWS identity returned <code>InvalidClientTokenId</code>. No instance was launched and no cost was incurred.</p>
+            <p class="callout warning"><strong>Cloud status:</strong> no ENA or EFA runtime evidence has been published. The preflight is read-only and creates no resources.</p>
           </section>
 
           <section id="boundaries">
-            <p class="eyebrow">08 · Claim boundaries</p>
-            <h2>What the evidence permits me to say</h2>
+            <p class="eyebrow">08 · Validation boundaries</p>
+            <h2>What the evidence establishes</h2>
             <div class="boundaries">
               <div>
-                <h3>Defensible now</h3>
+                <h3>Validated</h3>
                 <ul>
                   <li>Clean-room Linux PCI Ethernet driver in C against QEMU’s 82540EM-compatible interface</li>
                   <li>DMA rings, descriptor ownership, MMIO ordering, interrupt/NAPI synchronization, and recovery</li>
@@ -264,7 +265,7 @@ fi_rdm_bw -p efa &lt;peer-private-address&gt;</code></pre>
                 </ul>
               </div>
               <div>
-                <h3>Not defensible yet</h3>
+                <h3>Not validated</h3>
                 <ul>
                   <li>Physical-silicon or board bring-up</li>
                   <li>Oscilloscope, logic-analyzer, or JTAG validation</li>
@@ -276,23 +277,26 @@ fi_rdm_bw -p efa &lt;peer-private-address&gt;</code></pre>
             </div>
           </section>
 
-          <section id="interview">
-            <p class="eyebrow">09 · Interview defense</p>
-            <h2>Questions this implementation should withstand</h2>
-            <ul class="question-list">
-              <li>Why does the TX ring reserve one descriptor?</li>
-              <li>Why is <code>dma_wmb()</code> before <code>TDT</code>, and <code>dma_rmb()</code> after descriptor-done?</li>
-              <li>Why are descriptor DMA and packet-buffer mappings different?</li>
-              <li>What closes the interrupt/NAPI lost-wakeup window?</li>
-              <li>What happens when RX refill fails after consuming a packet?</li>
-              <li>Why can <code>cancel_work_sync()</code> under RTNL deadlock?</li>
-              <li>Why does synchronous SPI change the W5500 execution model?</li>
-              <li>Who owns unsent mbufs after a partial <code>rte_eth_tx_burst()</code>?</li>
-              <li>What exactly does QEMU validation fail to establish about silicon?</li>
-            </ul>
-            <p class="source-note">The strongest answer names an invariant, the observed evidence, and what that evidence does not prove.</p>
+          <section id="reproduce">
+            <p class="eyebrow">09 · Reproduce XNIC</p>
+            <h2>From clean checkout to a bound driver</h2>
+            <p>The recorded environment is reproducible on an Apple Silicon Mac with Homebrew, QEMU/HVF, an Ed25519 SSH key, 4 GiB available RAM, and roughly 8 GiB free storage. TCG is the slower behavioral fallback.</p>
+            <pre><code>git clone https://github.com/blackdragoon26/xnic-v1.git
+cd xnic-v1
+./scripts/host/bootstrap-macos.sh
+./scripts/host/fetch-guest.sh
+./scripts/host/run-qemu.sh</code></pre>
+            <p>With QEMU running, use a second terminal:</p>
+            <pre><code>./scripts/host/sync-to-guest.sh
+ssh -p 2222 xnic@127.0.0.1
+cd ~/xnic-v1
+sudo ./scripts/guest/setup.sh
+make
+sudo ./scripts/guest/bind-driver.sh
+sudo ./scripts/guest/qualification-suite.sh</code></pre>
+            <p>The suite writes new timestamped evidence rather than overwriting the baseline. Compare its raw output with the expected-versus-observed matrix before calling the run successful.</p>
             <div class="actions">
-              <a class="primary" href="/">Return to overview</a>
+              <a class="primary" href="https://github.com/blackdragoon26/xnic-v1/blob/master/docs/reproducing.md">Full reproduction guide</a>
               <a href="https://github.com/blackdragoon26/xnic-v1">Inspect source and raw evidence</a>
             </div>
           </section>
@@ -301,7 +305,7 @@ fi_rdm_bw -p efa &lt;peer-private-address&gt;</code></pre>
     </main>
 
     <footer>
-      <span>XNIC</span><span>Documentation rendered from the project’s verified scope.</span><a href="/">Overview</a>
+      <span>XNIC</span><span>Designed and developed by <a href="https://github.com/blackdragoon26">Sankalp Jha</a>.</span><a href="/">Overview</a>
     </footer>
   </body>
 </html>

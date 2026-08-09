@@ -3,11 +3,10 @@
 This directory prepares the two cloud experiments that follow physical W5500
 bring-up. It does not provision anything automatically.
 
-Current status on 2026-08-08: **blocked before preflight**. The configured
-region is `eu-north-1`, but `aws sts get-caller-identity` returned
-`InvalidClientTokenId`. No cloud resource was created and no cost was incurred.
+Current status: **not executed**. No ENA or EFA runtime result is published, no
+cloud resource was created, and no cost was incurred.
 
-Run the read-only preflight after repairing credentials:
+Run the read-only preflight only after configuring valid credentials:
 
 ```sh
 AWS_REGION=eu-north-1 ./cloud/scripts/aws-preflight.sh

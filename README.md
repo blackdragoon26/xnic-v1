@@ -3,10 +3,14 @@
 XNIC is a clean-room Linux networking project built to make driver ownership,
 ordering, recovery, and debugging concrete.
 
+[![xnic-ci](https://github.com/blackdragoon26/xnic-v1/actions/workflows/ci.yml/badge.svg)](https://github.com/blackdragoon26/xnic-v1/actions/workflows/ci.yml)
+
 **[Project overview](https://xnic-v1.vercel.app)** ·
 **[Technical documentation](https://xnic-v1.vercel.app/docs)** ·
 **[Implementation status](IMPLEMENTATION_STATUS.md)** ·
 **[Release evidence](evidence/release-gate.md)**
+
+Designed and developed by **[Sankalp Jha](https://github.com/blackdragoon26)**.
 
 The primary implementation is a Linux PCI Ethernet driver in C for QEMU's
 Intel 82540EM-compatible `8086:100e` interface. A separate post-v1 track adds a
@@ -21,7 +25,7 @@ never treated as validation.
 | PCI driver | **Validated in QEMU/HVF** | Traffic, wraparound, faults, lifecycle, reset, teardown, and recovery executed against the emulated device |
 | DPDK forwarder | **Virtual PMD passed** | `rte_ethdev` application executed with the PCAP PMD, including partial-TX cleanup and signal shutdown |
 | W5500 SPI driver | **Software preflight passed** | ARM64 build, sparse, model tests, overlay build, and unbound module lifecycle passed; no board is connected |
-| ENA / EFA | **Not executed** | AWS credentials fail identity validation; no instance was launched and no cost was incurred |
+| ENA / EFA | **Not executed** | No cloud runtime evidence is published; the preflight creates no resources |
 
 ## What the PCI driver implements
 
@@ -62,22 +66,34 @@ execution-validated. These are visible limitations, not implied passes.
 | [`hardware/w5500/`](hardware/w5500/) | W5500 SPI driver, Device Tree overlay, model tests, wiring, and physical gate |
 | [`scripts/`](scripts/) | reproducible QEMU, lifecycle, fault, traffic, and evidence workflows |
 | [`evidence/`](evidence/) | raw logs, PCAPs, expected/observed matrix, and release decision |
-| [`docs/`](docs/) | device contract, concurrency design, bug diary, and interview notes |
+| [`docs/`](docs/) | device contract, concurrency design, reproduction guide, qualification, and bug diary |
 | [`cloud/`](cloud/) | read-only AWS preflight and gated ENA/EFA procedures |
 | [`site/`](site/) | dependency-free project website and on-site documentation |
 
 ## Quick start
 
 The host harness runs an Ubuntu ARM64 guest with separate management and test
-NICs. On macOS:
+NICs. The recorded path uses an Apple Silicon Mac, QEMU/HVF, 4 GiB guest RAM,
+an Ed25519 SSH key, and roughly 8 GiB of free host storage.
 
 ```sh
+git clone https://github.com/blackdragoon26/xnic-v1.git
+cd xnic-v1
 ./scripts/host/bootstrap-macos.sh
 ./scripts/host/fetch-guest.sh
 ./scripts/host/run-qemu.sh
 ```
 
-Copy the repository into the guest, then build and bind the driver:
+Leave QEMU running. In a second host terminal, copy the checkout and enter the
+guest:
+
+```sh
+./scripts/host/sync-to-guest.sh
+ssh -p 2222 xnic@127.0.0.1
+cd ~/xnic-v1
+```
+
+Inside the guest, install the toolchain, build, and bind the driver:
 
 ```sh
 sudo ./scripts/guest/setup.sh
@@ -90,6 +106,8 @@ ethtool -S xnic0
 
 `run-qemu.sh` prefers Apple HVF and falls back to TCG. The bind script accepts
 only `8086:100e` and refuses to touch the interface carrying the default route.
+The complete prerequisites, expected output, cleanup commands, and Linux-host
+notes are in [`docs/reproducing.md`](docs/reproducing.md).
 
 ## Qualification
 
@@ -111,18 +129,34 @@ board-lifecycle gates remain pending hardware. Do not describe it as physical
 bring-up yet.
 
 The [cloud gate](cloud/README.md) defines cost-bounded ENA DPDK and two-node
-EFA/Libfabric experiments. It creates nothing automatically and currently
-stops before provisioning because AWS identity validation fails.
+EFA/Libfabric experiments. It creates nothing automatically, and neither path
+is represented as executed until raw runtime evidence is published.
 
-## Honest public wording
+## Validation boundary
 
-Defensible: **“Developed and qualified a clean-room Linux PCI Ethernet driver
-in C against QEMU's Intel 82540EM-compatible interface, covering DMA rings,
-interrupt/NAPI processing, backpressure, fault injection, and serialized reset
-recovery.”**
+The executed evidence covers a clean-room Linux PCI Ethernet driver against
+QEMU's Intel 82540EM-compatible interface: DMA rings, interrupt/NAPI processing,
+backpressure, fault injection, lifecycle stress, and serialized reset recovery.
 
-Not yet defensible: physical-silicon bring-up, production-driver ownership,
-real-NIC DPDK performance, ENA execution, or RDMA experience.
+It does not establish physical-silicon behavior, production readiness,
+real-NIC DPDK performance, ENA execution, or RDMA operation.
+
+## Next validation milestones
+
+1. Repeat the complete qualification suite on a fresh machine operated by an
+   independent reproducer.
+2. Run the PCI path under a KASAN/lockdep-enabled diagnostic kernel and execute
+   MSI rather than legacy INTx.
+3. Complete the W5500 Raspberry Pi bring-up with electrical, logic-analyzer,
+   packet-capture, lifecycle, and stress artifacts.
+4. Validate the DPDK forwarder against a physical PMD with a controlled traffic
+   peer before publishing performance numbers.
+5. Publish a signed release and short end-to-end demonstration tied to an exact
+   commit and evidence manifest.
+
+Contributions that preserve the device-contract and evidence-first approach are
+welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md). Source is distributed under
+GPL-2.0-only; see [`LICENSE`](LICENSE).
 
 See the [website documentation](https://xnic-v1.vercel.app/docs) for the
 readable walkthrough and the repository evidence for raw artifacts.

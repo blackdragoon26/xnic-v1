@@ -40,8 +40,8 @@ A 24 MHz FX2/sigrok analyzer is acceptable only for the deliberately reduced
 ## Oscilloscope
 
 Borrow or rent a calibrated scope first. Buying an INR 80k-plus instrument for
-one resume project is not rational unless embedded/lab work is a continuing
-career investment.
+one experiment is not rational unless it will support continuing embedded and
+hardware-validation work.
 
 If purchasing, the **Rigol DHO914S** is a suitable long-term option: four
 channels, 125 MHz bandwidth, 1.25 GSa/s, 12-bit conversion, and an AWG. An

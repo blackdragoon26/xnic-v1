@@ -6,7 +6,7 @@ the W5500's MACRAW mode, a Raspberry Pi Device Tree overlay, pure contract
 tests, and a physical qualification protocol.
 
 Current status: **source implemented; physical hardware validation pending**.
-The code must not appear in a resume bullet until the physical qualification
+The code must not be described as physically validated until the qualification
 gate is complete.
 
 ## Why this is separate from the PCI driver
